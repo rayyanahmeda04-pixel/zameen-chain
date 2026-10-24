@@ -1,0 +1,990 @@
+{
+  "address": "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "plotId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "reason",
+          "type": "string"
+        }
+      ],
+      "name": "DisputeFlagged",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "plotId",
+          "type": "uint256"
+        }
+      ],
+      "name": "DisputeResolved",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "plotId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "buyer",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "refundAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "EscrowCancelled",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "plotId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "buyer",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "EscrowInitiated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "plotId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "price",
+          "type": "uint256"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "plotId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "PlotDelisted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "plotId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "price",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "PlotListedForSale",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "plotId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "kdaPlotNumber",
+          "type": "string"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "squareYards",
+          "type": "uint256"
+        }
+      ],
+      "name": "PlotRegistered",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "officerAddress",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "officerName",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "badgeNumber",
+          "type": "string"
+        }
+      ],
+      "name": "RegistrarOfficerRegistered",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "allRegistrarAddresses",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_plotId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "_newDeedIpfsHash",
+          "type": "string"
+        }
+      ],
+      "name": "approveAndCompleteTransfer",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_plotId",
+          "type": "uint256"
+        }
+      ],
+      "name": "cancelEscrow",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_plotId",
+          "type": "uint256"
+        }
+      ],
+      "name": "delistPlot",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_plotId",
+          "type": "uint256"
+        }
+      ],
+      "name": "depositEscrow",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "escrowDeals",
+      "outputs": [
+        {
+          "internalType": "address payable",
+          "name": "buyer",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "isActive",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_plotId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "_reason",
+          "type": "string"
+        }
+      ],
+      "name": "flagDispute",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getAllPlots",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "id",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "kdaPlotNumber",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "schemeName",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "sector",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "plotNumber",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "squareYards",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "plotCategory",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "latitude",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "longitude",
+              "type": "string"
+            },
+            {
+              "internalType": "address payable",
+              "name": "currentOwner",
+              "type": "address"
+            },
+            {
+              "internalType": "string",
+              "name": "ipfsDeedHash",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "price",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum ZameenChain.PlotStatus",
+              "name": "status",
+              "type": "uint8"
+            },
+            {
+              "internalType": "bool",
+              "name": "isDisputed",
+              "type": "bool"
+            },
+            {
+              "internalType": "string",
+              "name": "disputeReason",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "registrationTimestamp",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct ZameenChain.LandPlot[]",
+          "name": "",
+          "type": "tuple[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getAllRegistrarOfficers",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "officerAddress",
+              "type": "address"
+            },
+            {
+              "internalType": "string",
+              "name": "officerName",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "badgeNumber",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "districtBranch",
+              "type": "string"
+            },
+            {
+              "internalType": "bool",
+              "name": "isActive",
+              "type": "bool"
+            },
+            {
+              "internalType": "uint256",
+              "name": "registeredAt",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct ZameenChain.RegistrarOfficer[]",
+          "name": "",
+          "type": "tuple[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_plotId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getPlotHistory",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "price",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "reason",
+              "type": "string"
+            }
+          ],
+          "internalType": "struct ZameenChain.OwnershipRecord[]",
+          "name": "",
+          "type": "tuple[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "governmentRegistrar",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "name": "isKdaNumberRegistered",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "name": "kdaNumberToPlotId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_plotId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_priceInWei",
+          "type": "uint256"
+        }
+      ],
+      "name": "listPlotForSale",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "nextPlotId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "plots",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "kdaPlotNumber",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "schemeName",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "sector",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "plotNumber",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "squareYards",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "plotCategory",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "latitude",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "longitude",
+          "type": "string"
+        },
+        {
+          "internalType": "address payable",
+          "name": "currentOwner",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "ipfsDeedHash",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "price",
+          "type": "uint256"
+        },
+        {
+          "internalType": "enum ZameenChain.PlotStatus",
+          "name": "status",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bool",
+          "name": "isDisputed",
+          "type": "bool"
+        },
+        {
+          "internalType": "string",
+          "name": "disputeReason",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "registrationTimestamp",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "string",
+              "name": "kdaPlotNumber",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "schemeName",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "sector",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "plotNumber",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "squareYards",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "plotCategory",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "latitude",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "longitude",
+              "type": "string"
+            },
+            {
+              "internalType": "address payable",
+              "name": "owner",
+              "type": "address"
+            },
+            {
+              "internalType": "string",
+              "name": "ipfsDeedHash",
+              "type": "string"
+            }
+          ],
+          "internalType": "struct ZameenChain.PlotRegistrationInput",
+          "name": "input",
+          "type": "tuple"
+        }
+      ],
+      "name": "registerPlot",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_officerAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "_officerName",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "_badgeNumber",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "_districtBranch",
+          "type": "string"
+        }
+      ],
+      "name": "registerRegistrarOfficer",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "registrarOfficers",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "officerAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "officerName",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "badgeNumber",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "districtBranch",
+          "type": "string"
+        },
+        {
+          "internalType": "bool",
+          "name": "isActive",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "registeredAt",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_plotId",
+          "type": "uint256"
+        }
+      ],
+      "name": "resolveDispute",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "superAdmin",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_kdaPlotNumber",
+          "type": "string"
+        }
+      ],
+      "name": "verifyPlotByKdaNumber",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "isFound",
+          "type": "bool"
+        },
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "id",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "kdaPlotNumber",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "schemeName",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "sector",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "plotNumber",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "squareYards",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "plotCategory",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "latitude",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "longitude",
+              "type": "string"
+            },
+            {
+              "internalType": "address payable",
+              "name": "currentOwner",
+              "type": "address"
+            },
+            {
+              "internalType": "string",
+              "name": "ipfsDeedHash",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "price",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum ZameenChain.PlotStatus",
+              "name": "status",
+              "type": "uint8"
+            },
+            {
+              "internalType": "bool",
+              "name": "isDisputed",
+              "type": "bool"
+            },
+            {
+              "internalType": "string",
+              "name": "disputeReason",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "registrationTimestamp",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct ZameenChain.LandPlot",
+          "name": "plot",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "network": "hardhat",
+  "accounts": {
+    "registrar": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "owner1": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "owner2": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    "buyer": "0x90F79bf6EB2c4f870365E785982E1f101E93b906"
+  }
+}
