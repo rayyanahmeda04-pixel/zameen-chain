@@ -1,10 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import { X, ShieldCheck, History, FileText, MapPin, AlertTriangle, ExternalLink, Calendar, Hash, QrCode, CheckCircle2, Award } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import {
+  X,
+  History,
+  AlertTriangle,
+  Calendar,
+  CheckCircle2,
+  Award,
+  Printer,
+  Copy,
+  Check
+} from 'lucide-react';
 import { ethers } from 'ethers';
+import {
+  formatEth,
+  formatPkrFromWei,
+  generateDeterministicQrMatrix,
+  resolveWalletLabel,
+  shortenAddress
+} from '../utils/formatters';
 
 export default function PlotModal({ plot, onClose, getAuditTrail }) {
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [copiedField, setCopiedField] = useState(null);
 
   useEffect(() => {
     if (!plot) return;
@@ -13,9 +31,7 @@ export default function PlotModal({ plot, onClose, getAuditTrail }) {
       setLoadingHistory(true);
       try {
         const trail = await getAuditTrail(plot.id);
-        if (isMounted) {
-          setHistory(trail || []);
-        }
+        if (isMounted) setHistory(trail || []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -23,202 +39,326 @@ export default function PlotModal({ plot, onClose, getAuditTrail }) {
       }
     };
     fetchHistory();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
+  }, [plot, getAuditTrail]);
+
+  const qrMatrix = useMemo(() => {
+    if (!plot) return [];
+    return generateDeterministicQrMatrix(`${plot.kdaPlotNumber}:${plot.ipfsDeedHash}:${plot.currentOwner}`);
   }, [plot]);
 
   if (!plot) return null;
 
+  const copyToClipboard = (val, key) => {
+    navigator.clipboard.writeText(val);
+    setCopiedField(key);
+    setTimeout(() => setCopiedField(null), 1800);
+  };
+
+  const ownerIdentity = resolveWalletLabel(plot.currentOwner);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-700/80 w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col">
-        
-        {/* Modal Top Bar */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+      <div className="bg-[#0a1220] border border-white/10 w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col">
+        {/* Top Bar */}
+        <div className="p-5 border-b border-white/[0.08] flex items-center justify-between bg-[#060b14] print:hidden">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-slate-950 shadow-lg shadow-teal-500/20">
               <Award className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-black text-slate-100">{plot.schemeName}</h3>
+                <h3 className="text-base sm:text-lg font-black text-slate-100">
+                  {plot.schemeName}
+                </h3>
                 <span className="text-xs font-mono font-bold text-teal-400 bg-teal-950 px-2.5 py-0.5 rounded-lg border border-teal-800">
                   {plot.kdaPlotNumber}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Official Cadastral Sanad • Government of Sindh Land Record</p>
+              <p className="text-xs text-slate-400">
+                Cryptographic Title Certificate • Board of Revenue, Government of Sindh
+              </p>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer"
+            >
+              <Printer className="w-4 h-4 text-emerald-400" />
+              <span>Print Sanad</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Modal Scrollable Body */}
+        {/* Scrollable Certificate & Audit Trail */}
         <div className="p-6 md:p-8 overflow-y-auto space-y-6">
-          
-          {/* Dispute Notice if applicable */}
           {plot.isDisputed && (
             <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-700 text-rose-200 text-xs shadow-lg">
               <div className="flex items-center gap-2 font-bold text-rose-300 mb-1 text-sm">
                 <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
-                Active Court Stay Order Flagged!
+                Active Judicial Stay Order / Encumbrance Flagged
               </div>
-              <p className="font-mono text-rose-300">{plot.disputeReason}</p>
-              <p className="text-[11px] text-rose-400/80 mt-1">Under Section 52 of Transfer of Property Act, property cannot be transferred during lis pendens.</p>
+              <p className="font-mono text-rose-200">{plot.disputeReason}</p>
+              <p className="text-[11px] text-rose-400/90 mt-1">
+                Pursuant to Section 52 of the Transfer of Property Act, alienation or mutation of this parcel is legally barred pending judicial disposal.
+              </p>
             </div>
           )}
 
-          {/* 📜 AUTHENTIC DIGITAL SANAD / CERTIFICATE OF TITLE */}
-          <div className="border-2 border-amber-500/30 bg-gradient-to-b from-[#0c1626] via-[#070d18] to-[#050912] p-6 md:p-8 rounded-3xl relative shadow-2xl overflow-hidden">
-            
-            {/* Watermark Crest */}
-            <div className="absolute right-6 top-6 opacity-5 pointer-events-none select-none text-amber-300">
-              <Award className="w-80 h-80" />
+          {/* OFFICIAL DIGITAL SANAD */}
+          <div className="border-2 border-amber-500/35 bg-gradient-to-b from-[#0d182b] via-[#070e1b] to-[#050912] p-6 md:p-8 rounded-3xl relative shadow-2xl overflow-hidden">
+            <div className="absolute right-6 top-6 opacity-[0.04] pointer-events-none select-none text-amber-300">
+              <Award className="w-72 h-72" />
             </div>
 
-            {/* Sanad Header */}
+            {/* Sanad Crest Header */}
             <div className="text-center border-b border-amber-500/20 pb-5 mb-6">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-300 bg-amber-950/60 px-4 py-1.5 rounded-full border border-amber-500/30 shadow-sm">
-                Government of Sindh • Revenue Department
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-300 bg-amber-950/60 px-4 py-1.5 rounded-full border border-amber-500/30">
+                Government of Sindh • Board of Revenue & KDA
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-white mt-3 tracking-wide uppercase">
-                Digital Sanad of Allotment & Title Deed
+                Sovereign Digital Sanad & Record of Rights
               </h2>
               <p className="text-xs text-slate-300 mt-1 font-mono">
-                Karachi Development Authority (KDA) • Immutable Cadastre Verification
+                Form-VII Cadastral Extract • Immutable Ethereum Smart Contract Ledger
               </p>
             </div>
 
-            {/* Sanad Content Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
-              
               <div className="md:col-span-2 space-y-4">
                 <div className="grid grid-cols-2 gap-4 bg-slate-950/70 p-4 rounded-2xl border border-white/[0.08]">
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">KDA Allotment ID:</span>
-                    <span className="font-mono font-bold text-emerald-400 text-sm">{plot.kdaPlotNumber}</span>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                      Allotment ID:
+                    </span>
+                    <span className="font-mono font-bold text-emerald-400 text-sm">
+                      {plot.kdaPlotNumber}
+                    </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Token ID:</span>
-                    <span className="font-mono font-bold text-amber-400">#00{plot.id}</span>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                      Cadastral Token ID:
+                    </span>
+                    <span className="font-mono font-bold text-amber-400">
+                      #KHI-{String(plot.id).padStart(4, '0')}
+                    </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Cadastral Area:</span>
-                    <span className="font-bold text-white text-sm">{plot.squareYards} Square Yards</span>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                      Measured Area:
+                    </span>
+                    <span className="font-bold text-white text-sm">
+                      {plot.squareYards} Square Yards
+                    </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Land Use Category:</span>
-                    <span className="font-bold text-emerald-400 uppercase">{plot.plotCategory}</span>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                      Approved Land Use:
+                    </span>
+                    <span className="font-bold text-emerald-400 uppercase">
+                      {plot.plotCategory}
+                    </span>
                   </div>
                 </div>
 
-                <div className="bg-slate-950/70 p-4 rounded-2xl border border-white/[0.08] space-y-2.5">
+                <div className="bg-slate-950/70 p-4 rounded-2xl border border-white/[0.08] space-y-3">
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Registered Owner (Title Holder):</span>
-                    <span className="font-mono text-emerald-300 text-xs break-all font-bold">{plot.currentOwner}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400 text-[10px] uppercase font-bold">
+                        Registered Owner {ownerIdentity ? `(${ownerIdentity})` : ''}:
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(plot.currentOwner, 'owner')}
+                        className="text-slate-400 hover:text-white flex items-center gap-1 text-[10px] cursor-pointer print:hidden"
+                      >
+                        {copiedField === 'owner' ? (
+                          <Check className="w-3 h-3 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                    <span className="font-mono text-emerald-300 text-xs break-all font-bold block mt-0.5">
+                      {plot.currentOwner}
+                    </span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Karachi Cadastre GPS:</span>
-                    <span className="font-mono text-slate-300">{plot.latitude}, {plot.longitude} (Karachi Urban Grid)</span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-white/[0.06]">
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                        WGS-84 Geo-Coordinates:
+                      </span>
+                      <span className="font-mono text-slate-300">
+                        {plot.latitude}°N, {plot.longitude}°E
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                        Initial Registration Date:
+                      </span>
+                      <span className="font-mono text-slate-300">
+                        {plot.registrationTimestamp
+                          ? new Date(Number(plot.registrationTimestamp) * 1000).toLocaleDateString()
+                          : 'Verified Genesis'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">IPFS Deed Document CID:</span>
-                    <span className="font-mono text-slate-300 break-all">{plot.ipfsDeedHash}</span>
+
+                  <div className="pt-2 border-t border-white/[0.06]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400 text-[10px] uppercase font-bold">
+                        IPFS Scanned Deed CID:
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(plot.ipfsDeedHash, 'cid')}
+                        className="text-slate-400 hover:text-white flex items-center gap-1 text-[10px] cursor-pointer print:hidden"
+                      >
+                        {copiedField === 'cid' ? (
+                          <Check className="w-3 h-3 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                        <span>Copy CID</span>
+                      </button>
+                    </div>
+                    <span className="font-mono text-slate-300 break-all block mt-0.5">
+                      {plot.ipfsDeedHash}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Scannable Verification QR Code & Official Seal */}
-              <div className="bg-slate-950/80 p-5 rounded-2xl border border-white/[0.08] flex flex-col items-center justify-between text-center">
-                
-                {/* Visual QR Code box */}
-                <div className="w-28 h-28 bg-white p-2 rounded-2xl shadow-xl flex items-center justify-center my-1 ring-4 ring-amber-500/20">
-                  <div className="w-full h-full border-2 border-slate-950 flex flex-col items-center justify-center relative p-1">
-                    <QrCode className="w-20 h-20 text-slate-950" />
-                  </div>
+              {/* Procedural Deterministic QR Matrix & Treasury Seal */}
+              <div className="bg-slate-950/85 p-5 rounded-2xl border border-white/[0.08] flex flex-col items-center justify-between text-center">
+                <div className="bg-white p-2.5 rounded-2xl shadow-xl ring-4 ring-amber-500/20 my-1">
+                  <svg width="105" height="105" viewBox="0 0 15 15" shapeRendering="crispEdges">
+                    {qrMatrix.map((row, rIdx) =>
+                      row.map((cell, cIdx) =>
+                        cell ? (
+                          <rect
+                            key={`${rIdx}-${cIdx}`}
+                            x={cIdx}
+                            y={rIdx}
+                            width="1"
+                            height="1"
+                            fill="#020617"
+                          />
+                        ) : null
+                      )
+                    )}
+                  </svg>
                 </div>
-                <span className="text-[10px] font-mono text-slate-400 mt-1">Scan for Public Title Verification</span>
+                <span className="text-[10px] font-mono text-slate-400 mt-1.5">
+                  Cryptographic QR Fingerprint
+                </span>
 
-                {/* Stamp Duty Seal Badge */}
                 <div className="mt-4 pt-4 border-t border-white/[0.08] w-full flex flex-col items-center">
                   <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[11px]">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Stamp Duty Certified</span>
+                    <span>e-Stamp Certified</span>
                   </div>
-                  <span className="text-[10px] text-amber-400/90 font-medium mt-0.5">Sindh Treasury Ledger Verified</span>
+                  <span className="text-[10px] text-amber-400/90 font-medium mt-0.5">
+                    Sindh Revenue Seal Verified
+                  </span>
                 </div>
-
               </div>
-
             </div>
-
           </div>
 
-          {/* Blockchain Audit Trail / Ownership Chain */}
+          {/* Immutable Ownership Chain */}
           <div>
-            <h4 className="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
+            <h4 className="text-sm font-bold text-slate-200 mb-3.5 flex items-center gap-2">
               <History className="w-4 h-4 text-teal-400" />
-              Immutable Blockchain Audit Trail & Transfers
+              Immutable Chain of Title & Mutation History ({history.length})
             </h4>
 
             {loadingHistory ? (
-              <p className="text-xs text-slate-500">Loading blockchain history...</p>
+              <p className="text-xs text-slate-500">Querying cryptographic chain of title...</p>
             ) : history.length === 0 ? (
-              <p className="text-xs text-slate-500">No transfer history recorded yet.</p>
+              <p className="text-xs text-slate-500">Genesis allotment verified on-chain.</p>
             ) : (
               <div className="relative pl-6 space-y-4 before:content-[''] before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
-                {history.map((record, idx) => (
-                  <div key={idx} className="relative text-xs">
-                    <div className="w-2.5 h-2.5 rounded-full bg-teal-400 absolute -left-[19px] top-1.5 shadow-sm shadow-teal-400" />
-                    
-                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-teal-300">
-                          {record.reason || (idx === 0 ? "Primary Government Allotment" : "Verified Blockchain Sale")}
-                        </span>
-                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(Number(record.timestamp) * 1000).toLocaleDateString()}
-                        </span>
-                      </div>
+                {history.map((record, idx) => {
+                  const fromLabel = resolveWalletLabel(record.from);
+                  const toLabel = resolveWalletLabel(record.to);
+                  const hasConsideration = record.price && BigInt(record.price) > 0n;
 
-                      <div className="space-y-1 font-mono text-[11px] text-slate-300">
-                        <p className="text-slate-500">
-                          From: <span className="text-slate-300">{record.from === ethers.ZeroAddress ? 'Karachi Land Authority (Genesis)' : `${record.from.slice(0, 16)}...`}</span>
-                        </p>
-                        <p className="text-slate-500">
-                          To: <span className="text-emerald-400">{record.to}</span>
-                        </p>
-                        {Number(record.price) > 0 && (
-                          <p className="text-amber-400 font-sans font-semibold">
-                            Consideration: {ethers.formatEther(record.price)} ETH
+                  return (
+                    <div key={idx} className="relative text-xs">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 absolute -left-[19px] top-2 shadow-sm shadow-emerald-400" />
+
+                      <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-bold text-emerald-300">
+                            {record.reason ||
+                              (idx === 0
+                                ? 'Initial Government Allotment'
+                                : 'Verified Atomic Escrow Transfer')}
+                          </span>
+                          <span className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(Number(record.timestamp) * 1000).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1 font-mono text-[11px] text-slate-300">
+                          <p className="text-slate-500">
+                            Grantor:{' '}
+                            <span className="text-slate-300">
+                              {record.from === ethers.ZeroAddress
+                                ? 'Government of Sindh / KDA (Genesis)'
+                                : `${shortenAddress(record.from, 10, 6)}${fromLabel ? ` (${fromLabel})` : ''}`}
+                            </span>
                           </p>
-                        )}
+                          <p className="text-slate-500">
+                            Grantee:{' '}
+                            <span className="text-emerald-400">
+                              {shortenAddress(record.to, 10, 6)}
+                              {toLabel ? ` (${toLabel})` : ''}
+                            </span>
+                          </p>
+                          {hasConsideration && (
+                            <p className="text-amber-400 font-sans font-semibold pt-0.5">
+                              Settled Consideration: {formatEth(record.price)} (≈{' '}
+                              {formatPkrFromWei(record.price)})
+                            </p>
+                          )}
+                          {record.txHash && (
+                            <p className="text-[10px] text-slate-500 pt-0.5">
+                              Tx Hash: {shortenAddress(record.txHash, 14, 10)}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
-
         </div>
 
-        {/* Modal Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex justify-between items-center text-xs text-slate-500">
-          <span>KDA Blockchain Hash Verification • Tamper-Proof</span>
+        {/* Footer */}
+        <div className="p-4 border-t border-white/[0.08] bg-[#060b14] flex justify-between items-center text-xs text-slate-500 print:hidden">
+          <span>SHA-3 / Keccak-256 Verified • Anti-Tamper Sovereign Sanad</span>
           <button
             onClick={onClose}
             className="px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer transition"
           >
-            Close Sanad
+            Close Certificate
           </button>
         </div>
-
       </div>
     </div>
   );

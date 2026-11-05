@@ -1,10 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import { ShieldAlert, ShieldCheck, Lock, KeyRound, AlertTriangle, CheckCircle2, FileCheck, PlusCircle, UserPlus, Users, Building } from 'lucide-react';
-import { ethers } from 'ethers';
+import React, { useState, useMemo } from 'react';
+import {
+  ShieldAlert,
+  ShieldCheck,
+  Lock,
+  KeyRound,
+  AlertTriangle,
+  CheckCircle2,
+  FileCheck,
+  PlusCircle,
+  UserPlus,
+  Users,
+  Building,
+  MapPin
+} from 'lucide-react';
+import { formatEth, formatPkrFromWei, shortenAddress } from '../utils/formatters';
+
+const KARACHI_SCHEME_PRESETS = [
+  {
+    label: 'Scheme 33',
+    prefix: 'KDA-SCH33-SEC05-P',
+    schemeName: 'Scheme 33 - Saadi Town',
+    sector: 'Sector 5',
+    lat: '24.9812',
+    lon: '67.1420'
+  },
+  {
+    label: 'DHA Phase 8',
+    prefix: 'DHA-PH8-ZNC-P',
+    schemeName: 'DHA Phase 8 - Creek Vista',
+    sector: 'Zone C',
+    lat: '24.7895',
+    lon: '67.0680'
+  },
+  {
+    label: 'Gulshan-e-Iqbal',
+    prefix: 'KDA-GLSHN-BLK13D-P',
+    schemeName: 'Gulshan-e-Iqbal',
+    sector: 'Block 13-D',
+    lat: '24.9215',
+    lon: '67.0890'
+  },
+  {
+    label: 'Bahria Town',
+    prefix: 'MDA-BTK-PRC10-P',
+    schemeName: 'Bahria Town Karachi',
+    sector: 'Precinct 10-A',
+    lat: '25.0350',
+    lon: '67.1985'
+  },
+  {
+    label: 'North Nazimabad',
+    prefix: 'KDA-NNZ-BLKH-P',
+    schemeName: 'North Nazimabad',
+    sector: 'Block H',
+    lat: '24.9380',
+    lon: '67.0425'
+  }
+];
 
 export default function RegistrarPanel({
   plots,
   activeRole,
+  isEmergencyFrozen,
   onSwitchToRegistrar,
   onRegisterPlot,
   onRegisterOfficer,
@@ -12,14 +69,18 @@ export default function RegistrarPanel({
   onCancelEscrow,
   officers = []
 }) {
-  const isAuthorized = activeRole?.role === 'REGISTRAR' && (activeRole?.status === 'ACTIVE' || !activeRole?.status);
-  const isPending = activeRole?.role === 'REGISTRAR' && activeRole?.status === 'PENDING_APPROVAL';
+  // Both active REGISTRAR and Chief ADMIN possess cryptographic registrar privileges on-chain
+  const isAuthorized =
+    (activeRole?.role === 'REGISTRAR' &&
+      (activeRole?.status === 'ACTIVE' || !activeRole?.status)) ||
+    activeRole?.role === 'ADMIN';
+  const isPending =
+    activeRole?.role === 'REGISTRAR' && activeRole?.status === 'PENDING_APPROVAL';
 
-  const [panelSection, setPanelSection] = useState('officers'); // 'officers', 'mint', 'escrows'
+  const [panelSection, setPanelSection] = useState('mint'); // 'mint', 'escrows', 'officers'
 
-  // Form for Plot Minting
   const [formData, setFormData] = useState({
-    kdaPlotNumber: '',
+    kdaPlotNumber: 'KDA-SCH33-SEC05-P88',
     schemeName: 'Scheme 33 - Saadi Town',
     sector: 'Sector 5',
     plotNumber: '88',
@@ -28,13 +89,12 @@ export default function RegistrarPanel({
     latitude: '24.9812',
     longitude: '67.1420',
     owner: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
-    ipfsDeedHash: 'QmKarachiNewAllotmentLetterVerifiedDeed2026'
+    ipfsDeedHash: 'QmKarachiVerifiedAllotmentSanad2026'
   });
 
-  // Form for Officer Registration
   const [officerForm, setOfficerForm] = useState({
-    address: '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65',
-    name: 'Muhammad Farhan (Sub-Registrar)',
+    address: '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc',
+    name: 'Engr. Muhammad Farhan (Sub-Registrar)',
     badgeNumber: 'KDA-SR-042',
     districtBranch: 'KDA Scheme 33 Sub-Registry Division'
   });
@@ -44,31 +104,70 @@ export default function RegistrarPanel({
 
   const escrowPlots = plots.filter((p) => Number(p.status) === 2);
 
+  // Deduplicate accredited officers by lowercase address
+  const uniqueOfficers = useMemo(() => {
+    const map = new Map();
+    map.set('0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266', {
+      address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+      name: 'Engr. Tariq Mansoor (Chief Sub-Registrar)',
+      badgeNumber: 'KDA-SR-001',
+      districtBranch: 'KDA Civic Centre Main Secretariat, Karachi',
+      isLead: true
+    });
+    officers.forEach((o) => {
+      if (o?.address && !map.has(o.address.toLowerCase())) {
+        map.set(o.address.toLowerCase(), o);
+      }
+    });
+    return Array.from(map.values());
+  }, [officers]);
+
+  const applySchemePreset = (preset) => {
+    const randNum = Math.floor(105 + Math.random() * 790);
+    setFormData((prev) => ({
+      ...prev,
+      kdaPlotNumber: `${preset.prefix}${randNum}`,
+      schemeName: preset.schemeName,
+      sector: preset.sector,
+      plotNumber: String(randNum),
+      latitude: preset.lat,
+      longitude: preset.lon
+    }));
+  };
+
   const handlePlotSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
 
-    const isDuplicate = plots.some(
-      (p) => p.kdaPlotNumber.toUpperCase() === formData.kdaPlotNumber.trim().toUpperCase()
-    );
+    const cleanId = formData.kdaPlotNumber.trim().toUpperCase();
+    const isDuplicate = plots.some((p) => p.kdaPlotNumber.toUpperCase() === cleanId);
 
     if (isDuplicate) {
-      setErrorMsg(`🚨 FRAUD BLOCKED: KDA Plot ID "${formData.kdaPlotNumber}" is already registered on-chain! Duplicate allotment rejected.`);
+      setErrorMsg(
+        `Duplicate Allotment Blocked: KDA Plot ID "${cleanId}" is already registered on-chain. Forged / double allotment rejected.`
+      );
       return;
     }
 
     try {
       await onRegisterPlot({
         ...formData,
-        kdaPlotNumber: formData.kdaPlotNumber.trim().toUpperCase(),
+        kdaPlotNumber: cleanId,
         plotNumber: Number(formData.plotNumber),
         squareYards: Number(formData.squareYards)
       });
-      setSuccessMsg(`✅ Success! Plot ${formData.kdaPlotNumber} has been minted as an immutable land title.`);
-      setFormData((prev) => ({ ...prev, kdaPlotNumber: '', plotNumber: '' }));
+      setSuccessMsg(
+        `Primary Land Title "${cleanId}" successfully minted into the sovereign cadastre.`
+      );
+      const nextNum = Number(formData.plotNumber || 100) + 1;
+      setFormData((prev) => ({
+        ...prev,
+        kdaPlotNumber: prev.kdaPlotNumber.replace(/\d+$/, String(nextNum)),
+        plotNumber: String(nextNum)
+      }));
     } catch (err) {
-      setErrorMsg(err.message || 'Registration failed');
+      setErrorMsg(err.reason || err.message || 'Plot minting failed.');
     }
   };
 
@@ -78,21 +177,24 @@ export default function RegistrarPanel({
     setSuccessMsg('');
 
     try {
-      if (onRegisterOfficer) {
-        await onRegisterOfficer(officerForm);
-        setSuccessMsg(`✅ Officer ${officerForm.name} (${officerForm.badgeNumber}) officially accredited on blockchain!`);
-        setOfficerForm((prev) => ({ ...prev, badgeNumber: `KDA-SR-0${Math.floor(Math.random() * 80 + 10)}` }));
-      }
+      await onRegisterOfficer(officerForm);
+      setSuccessMsg(
+        `Sub-Registrar ${officerForm.name} (${officerForm.badgeNumber}) accredited on-chain.`
+      );
+      setOfficerForm((prev) => ({
+        ...prev,
+        badgeNumber: `KDA-SR-0${Math.floor(Math.random() * 80 + 15)}`
+      }));
     } catch (err) {
-      setErrorMsg(err.message || 'Officer registration failed');
+      setErrorMsg(err.reason || err.message || 'Officer accreditation failed.');
     }
   };
 
-  // ⏳ PENDING CLEARANCE FOR UNAPPROVED REGISTRAR APPLICANTS
+  // PENDING CLEARANCE SCREEN
   if (isPending) {
     return (
       <div className="bg-slate-900/90 border border-amber-500/40 rounded-3xl p-8 md:p-12 text-center max-w-2xl mx-auto shadow-2xl animate-fadeIn">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shadow-lg shadow-amber-500/10">
+        <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center">
           <ShieldAlert className="w-10 h-10 animate-pulse" />
         </div>
 
@@ -101,135 +203,114 @@ export default function RegistrarPanel({
         </span>
 
         <h3 className="text-2xl font-black text-slate-100 mt-4 mb-2">
-          Officer Application Under Vetting
+          Sub-Registrar Credentials Under Executive Vetting
         </h3>
 
         <p className="text-sm text-slate-300 mb-6 leading-relaxed">
-          Aapka Sub-Registrar account create ho chuka hai, magar terminal access ke liye 
-          <span className="text-amber-400 font-bold"> Chief Admin (Rayyan Ahmed)</span> ki approval zaroori hai.
+          Your Sub-Registrar application has been verified and queued for final background clearance by the{' '}
+          <span className="text-amber-400 font-bold">Chief Administrator (Ministry of Revenue)</span>.
         </p>
 
         <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left text-xs mb-6 space-y-2 font-mono">
           <div className="flex justify-between text-slate-400">
-            <span>Officer Name:</span>
+            <span>Applicant Officer:</span>
             <span className="text-slate-100 font-bold font-sans">{activeRole?.name}</span>
           </div>
           <div className="flex justify-between text-slate-400">
-            <span>Application Status:</span>
-            <span className="text-amber-400 font-bold">PENDING_APPROVAL ⏳</span>
+            <span>Clearance Status:</span>
+            <span className="text-amber-400 font-bold">PENDING_APPROVAL</span>
           </div>
           <div className="flex justify-between text-slate-400">
-            <span>Vetting Authority:</span>
-            <span className="text-slate-200">👑 Rayyan Ahmed (Chief Administrator)</span>
+            <span>Approving Authority:</span>
+            <span className="text-slate-200 font-sans">Secretary / Chief Administrator, Board of Revenue</span>
           </div>
         </div>
-
-        <p className="text-xs text-slate-500">
-          Rayyan Ahmed apne Chief Admin portal ke Vetting Desk se aapke credentials verify karke <strong>Approve</strong> karenge, tab aapka terminal automatically unlock hoga.
-        </p>
       </div>
     );
   }
 
-  // 🔒 ACCESS DENIED FOR UNAUTHORIZED USERS
+  // RESTRICTED ACCESS SCREEN
   if (!isAuthorized) {
     return (
-      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-8 md:p-12 text-center max-w-2xl mx-auto shadow-2xl animate-fadeIn">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center shadow-lg shadow-rose-500/10">
+      <div className="bg-slate-900/90 border border-white/[0.08] rounded-3xl p-8 md:p-12 text-center max-w-2xl mx-auto shadow-2xl animate-fadeIn">
+        <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center">
           <Lock className="w-10 h-10" />
         </div>
 
         <span className="text-xs font-bold uppercase tracking-widest text-rose-400 bg-rose-950/60 border border-rose-800/60 px-3.5 py-1 rounded-full">
-          Restricted Government Intranet
+          Restricted Sovereign Intranet
         </span>
 
         <h3 className="text-2xl font-black text-slate-100 mt-4 mb-2">
-          Access Denied: KDA Officer Only
+          Authorized KDA Registrar Clearance Required
         </h3>
 
         <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-          This portal is reserved exclusively for the <span className="text-slate-200 font-semibold">Government of Sindh / Karachi Development Authority</span> Sub-Registrar. 
-          Your active wallet does not possess the cryptographic <code className="text-rose-300 font-mono text-xs bg-slate-950 px-2 py-0.5 rounded">REGISTRAR_ROLE</code>.
+          Primary land title minting, sub-registrar accreditation, and atomic escrow deed stamping are cryptographically restricted to accredited{' '}
+          <span className="text-slate-200 font-semibold">Karachi Development Authority (KDA)</span> officers.
         </p>
 
-        <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left text-xs mb-8 space-y-2 font-mono">
+        <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left text-xs mb-6 space-y-2 font-mono">
           <div className="flex justify-between text-slate-400">
-            <span>Your Active Address:</span>
-            <span className="text-slate-300 truncate max-w-[200px]">{activeRole?.address || 'Unknown'}</span>
+            <span>Active Session Wallet:</span>
+            <span className="text-slate-300">{shortenAddress(activeRole?.address, 10, 6)}</span>
           </div>
           <div className="flex justify-between text-slate-400">
-            <span>Your Assigned Role:</span>
-            <span className="text-amber-400 font-semibold">{activeRole?.name || 'Citizen / Public'}</span>
-          </div>
-          <div className="flex justify-between text-slate-400">
-            <span>Access Clearance:</span>
-            <span className="text-rose-400 font-bold">⛔ Unauthorized</span>
+            <span>Current Clearance Tier:</span>
+            <span className="text-amber-400 font-semibold">{activeRole?.role || 'PUBLIC_CITIZEN'}</span>
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-teal-950/30 border border-teal-500/30 text-left">
-          <p className="text-xs text-teal-300 font-medium mb-3">
-            💡 <strong>University Presentation Tip:</strong> Show the examiner how Role-Based Access Control (RBAC) works. Click below to authenticate with the government officer's cryptographic key:
-          </p>
-          <button
-            onClick={onSwitchToRegistrar}
-            className="w-full bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-bold text-xs py-3 rounded-xl transition shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <KeyRound className="w-4 h-4" />
-            <span>Authenticate as KDA Registrar (Officer Key)</span>
-          </button>
-        </div>
+        <button
+          onClick={onSwitchToRegistrar}
+          className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs py-3.5 rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <KeyRound className="w-4 h-4" />
+          <span>Sign In with KDA Sub-Registrar Credentials</span>
+        </button>
       </div>
     );
   }
 
-  // ✅ AUTHORIZED REGISTRAR CONSOLE
   return (
     <div className="space-y-8 animate-fadeIn">
-      
-      {/* Officer Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-teal-950/30 to-slate-900 border border-teal-500/40 p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg">
-        <div className="flex items-center gap-3.5">
-          <div className="p-3 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/30">
+      {/* Registrar Header */}
+      <div className="bg-gradient-to-r from-[#0b1626] via-teal-950/35 to-[#08101c] border border-teal-500/40 p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-center gap-4">
+          <div className="p-3.5 rounded-2xl bg-teal-500/15 text-teal-300 border border-teal-500/30">
             <ShieldCheck className="w-7 h-7" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-extrabold text-slate-100 text-sm">Karachi Development Authority (KDA) Registrar Terminal</h3>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/40">
-                OFFICER AUTHENTICATED
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-black text-white text-base sm:text-lg">
+                KDA Sub-Registrar Cadastral Terminal
+              </h3>
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                CRYPTOGRAPHIC SIGNER ACTIVE
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">Government of Sindh • Officer Accreditation, Allotment Minting & Deed Certification</p>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Directorate of Land Management • Allotment Minting, Deed Stamping & Officer Roster
+            </p>
           </div>
         </div>
 
-        <div className="text-right text-xs font-mono">
-          <span className="text-slate-500 block text-[10px]">Active Officer Key:</span>
-          <span className="text-teal-400 font-bold">{activeRole.address.slice(0, 8)}...{activeRole.address.slice(-6)}</span>
+        <div className="text-left md:text-right text-xs font-mono bg-slate-950/70 px-4 py-2.5 rounded-2xl border border-white/[0.08]">
+          <span className="text-slate-400 block text-[10px] uppercase">Authorized Signing Key:</span>
+          <span className="text-teal-300 font-bold">
+            {shortenAddress(activeRole.address, 8, 6)}
+          </span>
         </div>
       </div>
 
-      {/* Internal Navigation Sub-Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-        <button
-          onClick={() => setPanelSection('officers')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
-            panelSection === 'officers'
-              ? 'bg-teal-500 text-slate-950 font-bold'
-              : 'bg-slate-800 text-slate-400 hover:text-white'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>Officer Registration & Badges</span>
-        </button>
-
+      {/* Sub-Navigation */}
+      <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-slate-900/60 border border-white/[0.08]">
         <button
           onClick={() => setPanelSection('mint')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
             panelSection === 'mint'
-              ? 'bg-teal-500 text-slate-950 font-bold'
-              : 'bg-slate-800 text-slate-400 hover:text-white'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md'
+              : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
           }`}
         >
           <PlusCircle className="w-4 h-4" />
@@ -238,49 +319,362 @@ export default function RegistrarPanel({
 
         <button
           onClick={() => setPanelSection('escrows')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
             panelSection === 'escrows'
-              ? 'bg-teal-500 text-slate-950 font-bold'
-              : 'bg-slate-800 text-slate-400 hover:text-white'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md'
+              : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
           }`}
         >
           <FileCheck className="w-4 h-4" />
           <span>Pending Escrow Stamping ({escrowPlots.length})</span>
         </button>
+
+        <button
+          onClick={() => setPanelSection('officers')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+            panelSection === 'officers'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md'
+              : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Accredited Officers ({uniqueOfficers.length})</span>
+        </button>
       </div>
 
-      {/* Alerts */}
+      {/* Status Alerts */}
       {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-600 text-rose-200 text-xs flex items-center gap-2">
+        <div className="p-4 rounded-2xl bg-rose-950/50 border border-rose-600 text-rose-200 text-xs flex items-center gap-2.5">
           <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500 text-emerald-200 text-xs flex items-center gap-2">
+        <div className="p-4 rounded-2xl bg-emerald-950/50 border border-emerald-500 text-emerald-200 text-xs flex items-center gap-2.5">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{successMsg}</span>
         </div>
       )}
 
-      {/* SUB-SECTION 1: OFFICER REGISTRATION & ACCREDITATION */}
+      {/* 1. PRIMARY PLOT ALLOTMENT */}
+      {panelSection === 'mint' && (
+        <div className="bg-slate-900/85 border border-white/[0.08] p-6 md:p-8 rounded-3xl space-y-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <PlusCircle className="w-5 h-5 text-emerald-400" />
+                Mint Primary Cadastral Land Title
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Digitize a surveyed parcel into the immutable blockchain cadastre. Duplicate KDA Allotment IDs are automatically rejected.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-slate-400 font-semibold flex items-center gap-1 mr-1">
+                <MapPin className="w-3.5 h-3.5 text-teal-400" />
+                Auto-Fill Zone:
+              </span>
+              {KARACHI_SCHEME_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => applySchemePreset(preset)}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-white/[0.06] text-[11px] font-medium transition cursor-pointer"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <form onSubmit={handlePlotSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                  Unique Allotment ID *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. KDA-SCH33-SEC05-P88"
+                  value={formData.kdaPlotNumber}
+                  onChange={(e) => setFormData({ ...formData, kdaPlotNumber: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                  Karachi Housing Scheme *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.schemeName}
+                  onChange={(e) => setFormData({ ...formData, schemeName: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                  Sector / Block / Precinct *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.sector}
+                  onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                  Plot Number *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={formData.plotNumber}
+                  onChange={(e) => setFormData({ ...formData, plotNumber: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                  Measured Area (Square Yards) *
+                </label>
+                <input
+                  type="number"
+                  min="40"
+                  required
+                  value={formData.squareYards}
+                  onChange={(e) => setFormData({ ...formData, squareYards: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                  Zoning Category *
+                </label>
+                <select
+                  value={formData.plotCategory}
+                  onChange={(e) => setFormData({ ...formData, plotCategory: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none cursor-pointer"
+                >
+                  <option value="Residential">Residential</option>
+                  <option value="Commercial">Commercial</option>
+                  <option value="Industrial">Industrial</option>
+                  <option value="Amenity">Public Amenity</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                  GPS Latitude (°N) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.latitude}
+                  onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                  GPS Longitude (°E) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.longitude}
+                  onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                  IPFS Scanned Sanad CID *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.ipfsDeedHash}
+                  onChange={(e) => setFormData({ ...formData, ipfsDeedHash: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
+                />
+              </div>
+
+              <div className="md:col-span-2 lg:col-span-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                  <label className="text-xs font-medium text-slate-300">
+                    Allottee / Citizen Ethereum Wallet Address *
+                  </label>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                    <span className="text-slate-500">Verified Citizens:</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          owner: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
+                        })
+                      }
+                      className="px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono cursor-pointer"
+                    >
+                      Aamir Khan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          owner: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'
+                        })
+                      }
+                      className="px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono cursor-pointer"
+                    >
+                      Bilal Siddiqui
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          owner: '0x90F79bf6EB2c4f870365E785982E1f101E93b906'
+                        })
+                      }
+                      className="px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono cursor-pointer"
+                    >
+                      Hamza Sheikh
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={formData.owner}
+                  onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isEmergencyFrozen}
+              className="mt-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 text-slate-950 font-bold text-xs px-7 py-3.5 rounded-xl transition shadow-lg shadow-emerald-500/20 cursor-pointer"
+            >
+              Sign & Mint Sovereign Land Title
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* 2. PENDING ESCROW STAMPING */}
+      {panelSection === 'escrows' && (
+        <div className="bg-slate-900/85 border border-white/[0.08] p-6 md:p-8 rounded-3xl">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-amber-400" />
+                Atomic Escrow Deeds Awaiting Sub-Registrar Certification
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Verify biometric clearance, tax challans, and non-encumbrance before releasing escrow funds to seller and mutating title to buyer.
+              </p>
+            </div>
+            <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">
+              {escrowPlots.length} Awaiting Sign-Off
+            </span>
+          </div>
+
+          {escrowPlots.length === 0 ? (
+            <div className="p-8 text-center border border-dashed border-slate-800 rounded-2xl text-slate-400 text-xs">
+              All escrow settlements are clear. When a buyer deposits ETH into Smart Escrow, the transfer dossier appears here for official certification.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {escrowPlots.map((plot) => (
+                <div
+                  key={plot.id}
+                  className="p-5 rounded-2xl bg-slate-950 border border-amber-500/35 flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-teal-400 bg-teal-950 px-2.5 py-0.5 rounded border border-teal-800">
+                        {plot.kdaPlotNumber}
+                      </span>
+                      <span className="text-sm font-bold text-white">
+                        {plot.schemeName} ({plot.sector}, Plot #{plot.plotNumber})
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-400 font-mono">
+                      <span>Seller: {shortenAddress(plot.currentOwner, 8, 6)}</span>
+                      {plot.escrowBuyer && (
+                        <span className="text-cyan-300">
+                          Buyer: {shortenAddress(plot.escrowBuyer, 8, 6)}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-amber-400 font-bold">
+                      Vault Locked Consideration: {formatEth(plot.escrowAmount || plot.price)} (≈{' '}
+                      {formatPkrFromWei(plot.escrowAmount || plot.price)})
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <button
+                      disabled={isEmergencyFrozen}
+                      onClick={() => onApproveTransfer(plot.id)}
+                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Stamp Sanad & Release ETH</span>
+                    </button>
+
+                    <button
+                      onClick={() => onCancelEscrow(plot)}
+                      className="bg-slate-800 hover:bg-rose-950 text-rose-300 text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-700 cursor-pointer"
+                    >
+                      Reject & Refund Buyer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3. OFFICER ACCREDITATION */}
       {panelSection === 'officers' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* Register New Officer Form */}
-          <div className="bg-slate-900/90 border border-slate-800 p-6 md:p-8 rounded-3xl">
+          <div className="bg-slate-900/85 border border-white/[0.08] p-6 md:p-8 rounded-3xl">
             <h3 className="text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-teal-400" />
-              Onboard & Accredit KDA Sub-Registrar
+              Accredit Sub-Registrar Wallet Key
             </h3>
             <p className="text-xs text-slate-400 mb-6">
-              Grant cryptographic authorization to a government officer to mint deeds and certify title transfers on-chain.
+              Grant on-chain signing authority to an approved KDA Sub-Registrar officer.
             </p>
 
             <form onSubmit={handleOfficerSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="text-slate-400 block mb-1 font-medium">Officer Full Name & Designation *</label>
+                <label className="text-slate-300 block mb-1 font-medium">
+                  Officer Name & Official Designation *
+                </label>
                 <input
                   type="text"
                   required
@@ -291,7 +685,9 @@ export default function RegistrarPanel({
               </div>
 
               <div>
-                <label className="text-slate-400 block mb-1 font-medium">Official Badge ID / Service Number *</label>
+                <label className="text-slate-300 block mb-1 font-medium">
+                  Service Badge Number *
+                </label>
                 <input
                   type="text"
                   required
@@ -302,18 +698,24 @@ export default function RegistrarPanel({
               </div>
 
               <div>
-                <label className="text-slate-400 block mb-1 font-medium">Sub-Registry District Division / Branch *</label>
+                <label className="text-slate-300 block mb-1 font-medium">
+                  District Sub-Registry Branch *
+                </label>
                 <input
                   type="text"
                   required
                   value={officerForm.districtBranch}
-                  onChange={(e) => setOfficerForm({ ...officerForm, districtBranch: e.target.value })}
+                  onChange={(e) =>
+                    setOfficerForm({ ...officerForm, districtBranch: e.target.value })
+                  }
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 focus:outline-none focus:border-teal-500"
                 />
               </div>
 
               <div>
-                <label className="text-slate-400 block mb-1 font-medium">Officer Ethereum Public Wallet Key *</label>
+                <label className="text-slate-300 block mb-1 font-medium">
+                  Officer Ethereum Public Key *
+                </label>
                 <input
                   type="text"
                   required
@@ -325,277 +727,53 @@ export default function RegistrarPanel({
 
               <button
                 type="submit"
-                className="w-full mt-2 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg shadow-teal-500/20 cursor-pointer"
+                className="w-full mt-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg shadow-emerald-500/20 cursor-pointer"
               >
-                Register & Authorize Officer on Blockchain
+                Authorize Officer On-Chain
               </button>
             </form>
           </div>
 
-          {/* List of Accredited Officers */}
-          <div className="bg-slate-900/90 border border-slate-800 p-6 md:p-8 rounded-3xl">
+          <div className="bg-slate-900/85 border border-white/[0.08] p-6 md:p-8 rounded-3xl">
             <h3 className="text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
               <Building className="w-5 h-5 text-teal-400" />
-              Accredited KDA Officers Roster
+              Active Accredited Registrars ({uniqueOfficers.length})
             </h3>
             <p className="text-xs text-slate-400 mb-6">
-              Active Sub-Registrars authorized to sign cadastral titles in Karachi.
+              Cryptographically authorized signing officers on the ZameenChain smart contract.
             </p>
 
-            <div className="space-y-4">
-              {/* Primary Lead Officer */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-teal-500/40">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-sm text-slate-100">Tariq Mansoor (Chief Sub-Registrar)</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/40">
-                    Lead Authority
-                  </span>
-                </div>
-                <p className="text-xs text-teal-300 font-mono">Badge: KDA-SR-001</p>
-                <p className="text-xs text-slate-400 mt-1">KDA Civic Centre Main Secretariat, Karachi</p>
-                <p className="text-[11px] font-mono text-slate-500 mt-1 truncate">Key: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266</p>
-              </div>
-
-              {/* Dynamically Registered Officers */}
-              {officers.map((off, idx) => (
-                <div key={idx} className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+            <div className="space-y-3.5 max-h-[420px] overflow-y-auto pr-1">
+              {uniqueOfficers.map((off) => (
+                <div
+                  key={off.address}
+                  className={`p-4 rounded-2xl bg-slate-950 border ${
+                    off.isLead ? 'border-teal-500/40' : 'border-slate-800'
+                  }`}
+                >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-bold text-sm text-slate-100">{off.name}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                      Active Officer
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        off.isLead
+                          ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
+                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      }`}
+                    >
+                      {off.isLead ? 'Lead Authority' : 'Accredited'}
                     </span>
                   </div>
                   <p className="text-xs text-teal-300 font-mono">Badge: {off.badgeNumber}</p>
                   <p className="text-xs text-slate-400 mt-1">{off.districtBranch}</p>
-                  <p className="text-[11px] font-mono text-slate-500 mt-1 truncate">Key: {off.address}</p>
+                  <p className="text-[11px] font-mono text-slate-500 mt-1 truncate">
+                    Key: {off.address}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
-
         </div>
       )}
-
-      {/* SUB-SECTION 2: PRIMARY PLOT ALLOTMENT */}
-      {panelSection === 'mint' && (
-        <div className="bg-slate-900/90 border border-slate-800 p-6 md:p-8 rounded-3xl">
-          <h3 className="text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
-            <PlusCircle className="w-5 h-5 text-teal-400" />
-            Primary Allotment & Land Title Minting
-          </h3>
-          <p className="text-xs text-slate-400 mb-6">
-            Record a freshly surveyed plot into the permanent blockchain ledger. Double allotment is cryptographically prohibited.
-          </p>
-
-          <form onSubmit={handlePlotSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              
-              <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1.5">
-                  KDA Allotment ID (Must Be Unique) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. KDA-SCH33-SEC05-P88"
-                  value={formData.kdaPlotNumber}
-                  onChange={(e) => setFormData({ ...formData, kdaPlotNumber: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1.5">
-                  Karachi Scheme / Project *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.schemeName}
-                  onChange={(e) => setFormData({ ...formData, schemeName: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1.5">
-                  Sector / Block *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.sector}
-                  onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1.5">
-                  Plot Number *
-                </label>
-                <input
-                  type="number"
-                  required
-                  value={formData.plotNumber}
-                  onChange={(e) => setFormData({ ...formData, plotNumber: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1.5">
-                  Area (Square Yards) *
-                </label>
-                <input
-                  type="number"
-                  required
-                  value={formData.squareYards}
-                  onChange={(e) => setFormData({ ...formData, squareYards: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1.5">
-                  Category
-                </label>
-                <select
-                  value={formData.plotCategory}
-                  onChange={(e) => setFormData({ ...formData, plotCategory: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none cursor-pointer"
-                >
-                  <option value="Residential">Residential</option>
-                  <option value="Commercial">Commercial</option>
-                  <option value="Industrial">Industrial</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-medium text-slate-400">
-                    Allottee / Owner Ethereum Address *
-                  </label>
-                  <div className="flex items-center gap-1.5 text-[10px]">
-                    <span className="text-slate-500">Quick Fill:</span>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, owner: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' })}
-                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono"
-                    >
-                      Aamir Khan
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, owner: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC' })}
-                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono"
-                    >
-                      Bilal Siddiqui
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, owner: '0x90F79bf6EB2c4f870365E785982E1f101E93b906' })}
-                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono"
-                    >
-                      Hamza Sheikh
-                    </button>
-                  </div>
-                </div>
-                <input
-                  type="text"
-                  required
-                  value={formData.owner}
-                  onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1.5">
-                  IPFS Scanned Deed CID
-                </label>
-                <input
-                  type="text"
-                  value={formData.ipfsDeedHash}
-                  onChange={(e) => setFormData({ ...formData, ipfsDeedHash: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
-                />
-              </div>
-
-            </div>
-
-            <button
-              type="submit"
-              className="mt-4 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-bold text-xs px-6 py-3 rounded-xl transition shadow-lg shadow-teal-500/20 cursor-pointer"
-            >
-              Mint Verified Land Title to Blockchain
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* SUB-SECTION 3: PENDING ESCROW APPROVALS */}
-      {panelSection === 'escrows' && (
-        <div className="bg-slate-900/90 border border-slate-800 p-6 md:p-8 rounded-3xl">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <FileCheck className="w-5 h-5 text-amber-400" />
-                Pending Escrows Awaiting Sub-Registrar Stamping
-              </h3>
-              <p className="text-xs text-slate-400">
-                Buyer has locked ETH in smart contract. Review legal deed before releasing funds to seller and transferring title.
-              </p>
-            </div>
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-              {escrowPlots.length} Pending Approval
-            </span>
-          </div>
-
-          {escrowPlots.length === 0 ? (
-            <div className="p-6 text-center border border-dashed border-slate-800 rounded-2xl text-slate-500 text-xs">
-              No pending escrow deals right now. Buyers can initiate escrow by clicking "Deposit Escrow" in the Buyer Portal.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {escrowPlots.map((plot) => (
-                <div key={plot.id} className="p-4 rounded-2xl bg-slate-950/80 border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-teal-400">{plot.kdaPlotNumber}</span>
-                      <span className="text-xs font-semibold text-slate-200">{plot.schemeName} ({plot.squareYards} Sq. Yds)</span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Seller: <span className="font-mono text-slate-300">{plot.currentOwner.slice(0, 10)}...</span>
-                    </p>
-                    <p className="text-xs text-amber-400 font-semibold mt-0.5">
-                      Locked Amount: {ethers.formatEther(plot.price)} ETH
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => onApproveTransfer(plot.id)}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      Approve Legal Transfer
-                    </button>
-
-                    <button
-                      onClick={() => onCancelEscrow(plot.id)}
-                      className="bg-slate-800 hover:bg-slate-700 text-rose-300 text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-700 cursor-pointer"
-                    >
-                      Reject & Refund
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
     </div>
   );
 }

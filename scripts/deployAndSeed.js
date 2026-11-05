@@ -10,7 +10,7 @@ async function main() {
   const [registrar, owner1, owner2, buyer] = await hre.ethers.getSigners();
 
   console.log("--------------------------------------------------");
-  console.log("🏛️ Deploying ZameenChain Smart Contract...");
+  console.log("🏛️ Deploying ZameenChain Sovereign Smart Contract...");
   console.log("KDA Registrar Address:", registrar.address);
 
   const ZameenChain = await hre.ethers.getContractFactory("ZameenChain");
@@ -20,7 +20,6 @@ async function main() {
 
   console.log("✅ ZameenChain Deployed at:", contractAddress);
   console.log("--------------------------------------------------");
-
   console.log("🌱 Seeding realistic Karachi Land Registry records...");
 
   const plotsToSeed = [
@@ -71,6 +70,30 @@ async function main() {
       longitude: "67.0650",
       owner: owner2.address,
       ipfsDeedHash: "QmSurjaniSector7DAllotmentSanadHash789"
+    },
+    {
+      kdaPlotNumber: "DHA-PH8-ZNB-C214",
+      schemeName: "DHA Phase 8 - Zulfiqar Commercial",
+      sector: "Zone B",
+      plotNumber: 214,
+      squareYards: 600,
+      plotCategory: "Commercial",
+      latitude: "24.7955",
+      longitude: "67.0742",
+      owner: owner1.address,
+      ipfsDeedHash: "QmDHAPhase8CommercialSanadVerifiedHash214"
+    },
+    {
+      kdaPlotNumber: "MDA-BTK-PRC19-P310",
+      schemeName: "Bahria Town Karachi",
+      sector: "Precinct 19",
+      plotNumber: 310,
+      squareYards: 250,
+      plotCategory: "Residential",
+      latitude: "25.0415",
+      longitude: "67.2110",
+      owner: owner2.address,
+      ipfsDeedHash: "QmBahriaTownPrecinct19AllotmentDeedHash310"
     }
   ];
 
@@ -80,18 +103,22 @@ async function main() {
     console.log(`  + Registered: ${plot.kdaPlotNumber} (${plot.schemeName})`);
   }
 
-  // List Plot #1 for sale by owner1
-  const pricePlot1 = hre.ethers.parseEther("1.5");
-  await (await contract.connect(owner1).listPlotForSale(1, pricePlot1)).wait();
-  console.log("  * Plot #1 listed for sale at 1.5 ETH by Owner 1");
+  // List Plot #1, Plot #2, and Plot #5 for sale
+  await (await contract.connect(owner1).listPlotForSale(1, hre.ethers.parseEther("1.5"))).wait();
+  console.log("  * Plot #1 listed for sale at 1.5 ETH by Aamir Khan");
 
-  // List Plot #2 for sale by owner2
-  const pricePlot2 = hre.ethers.parseEther("4.0");
-  await (await contract.connect(owner2).listPlotForSale(2, pricePlot2)).wait();
-  console.log("  * Plot #2 listed for sale at 4.0 ETH by Owner 2");
+  await (await contract.connect(owner2).listPlotForSale(2, hre.ethers.parseEther("4.0"))).wait();
+  console.log("  * Plot #2 listed for sale at 4.0 ETH by Bilal Siddiqui");
 
-  // Flag Plot #4 as DISPUTED (Karachi Stay Order example)
-  await (await contract.connect(registrar).flagDispute(4, "Sindh High Court Stay Order #SHC-2026/412 (Encroachment claim pending)")).wait();
+  await (await contract.connect(owner1).listPlotForSale(5, hre.ethers.parseEther("8.5"))).wait();
+  console.log("  * Plot #5 listed for sale at 8.5 ETH by Aamir Khan");
+
+  // Flag Plot #4 as DISPUTED (Sindh High Court Stay Order demonstration)
+  await (
+    await contract
+      .connect(registrar)
+      .flagDispute(4, "Sindh High Court Stay Order #SHC-2026/412 (Anti-Encroachment Litigation Pending)")
+  ).wait();
   console.log("  ! Plot #4 flagged as DISPUTED (Court Stay Order demonstration)");
 
   // Export deployment info for Frontend

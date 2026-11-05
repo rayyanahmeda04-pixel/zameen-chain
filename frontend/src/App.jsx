@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Navbar from './components/Navbar';
 import StatsBanner from './components/StatsBanner';
 import PublicVerification from './components/PublicVerification';
@@ -7,82 +7,162 @@ import RegistrarPanel from './components/RegistrarPanel';
 import SellerPortal from './components/SellerPortal';
 import BuyerPortal from './components/BuyerPortal';
 import KarachiMap from './components/KarachiMap';
+import LedgerExplorer from './components/LedgerExplorer';
 import PlotModal from './components/PlotModal';
 import AuthModal from './components/AuthModal';
+import ActionModal from './components/ActionModal';
 import AdminPortal from './components/AdminPortal';
 import {
   getCurrentUser,
-  setCurrentUser,
   logoutUser
 } from './utils/authService';
 import {
-  getContract,
-  getProvider,
-  SIMULATED_ROLES
+  CONTRACT_ADDRESS,
+  fetchLedgerSnapshot,
+  ledgerRegisterPlot,
+  ledgerListPlot,
+  ledgerDelistPlot,
+  ledgerDepositEscrow,
+  ledgerApproveTransfer,
+  ledgerCancelEscrow,
+  ledgerFlagDispute,
+  ledgerResolveDispute,
+  ledgerRegisterOfficer,
+  ledgerRevokeOfficer,
+  ledgerSetEmergencyFreeze,
+  ledgerGetPlotHistory,
+  resetCloudLedgerToDefaults
 } from './utils/web3Service';
+import { shortenAddress } from './utils/formatters';
 import { ethers } from 'ethers';
-import { Search, Map as MapIcon, ShieldAlert, Layers, CheckCircle2, AlertCircle, RefreshCw, ShoppingBag, Home, Crown } from 'lucide-react';
+import {
+  Search,
+  Map as MapIcon,
+  ShieldAlert,
+  Layers,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  ShoppingBag,
+  Home,
+  Crown,
+  Activity,
+  Lock,
+  Building2
+} from 'lucide-react';
+
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 export default function App() {
   const [currentUser, setAppUser] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('verify');
-  const [account, setAccount] = useState('0x0000000000000000000000000000000000000000');
+  const [account, setAccount] = useState(ZERO_ADDRESS);
   const [isMetaMaskConnected, setIsMetaMaskConnected] = useState(false);
 
+  const [networkMode, setNetworkMode] = useState('CLOUD_LEDGER');
+  const [blockNumber, setBlockNumber] = useState(18420118);
+  const [isEmergencyFrozen, setIsEmergencyFrozen] = useState(false);
+
   const [plots, setPlots] = useState([]);
-  const [officers, setOfficers] = useState([
-    {
-      name: "Engr. Noman Ali (Sub-Registrar)",
-      badgeNumber: "KDA-SR-019",
-      districtBranch: "KDA Gulshan-e-Iqbal Town Division",
-      address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
-    }
-  ]);
+  const [officers, setOfficers] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+
   const [selectedPlot, setSelectedPlot] = useState(null);
+  const [actionModalState, setActionModalState] = useState(null);
   const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 5000);
-  };
-
-  // Check initial user on open; if no user or pending approval, trigger Auth Gateway popup
-  useEffect(() => {
-    const user = getCurrentUser();
-    if (user) {
-      if (user.role === 'REGISTRAR' && (user.status === 'PENDING_APPROVAL' || user.status === 'REJECTED')) {
-        logoutUser();
-        setAppUser(null);
-        setAccount('0x0000000000000000000000000000000000000000');
-        setActiveTab('verify');
-        setIsAuthModalOpen(true);
-        return;
-      }
-      setAppUser(user);
-      setAccount(user.walletAddress);
-      if (user.role === 'BUYER') setActiveTab('buyer');
-      else if (user.role === 'SELLER') setActiveTab('seller');
-      else if (user.role === 'REGISTRAR') setActiveTab('registrar');
-      else if (user.role === 'ADMIN') setActiveTab('admin');
-    } else {
-      // Prompt user on startup: Buyer, Seller, or Registrar registration
-      setIsAuthModalOpen(true);
+  const showToast = useCallback((message, type = 'success') => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
     }
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+    }, 5000);
   }, []);
 
-  const handleAuthSuccess = (user) => {
-    if (user.role === 'REGISTRAR' && (user.status === 'PENDING_APPROVAL' || user.status === 'REJECTED')) {
-      showToast("⏳ Access Pending: Your application is awaiting Chief Admin (Rayyan Ahmed) clearance.", "error");
-      setIsAuthModalOpen(true);
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  // Restore authenticated session on startup without blocking public visitors
+  useEffect(() => {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    if (
+      user.role === 'REGISTRAR' &&
+      (user.status === 'PENDING_APPROVAL' || user.status === 'REJECTED')
+    ) {
+      logoutUser();
+      setAppUser(null);
+      setAccount(ZERO_ADDRESS);
+      setActiveTab('verify');
       return;
     }
 
     setAppUser(user);
-    setAccount(user.walletAddress);
-    showToast(`Welcome ${user.name}! Authenticated as ${user.role}.`);
+    setAccount(user.walletAddress || ZERO_ADDRESS);
+    if (user.role === 'BUYER') setActiveTab('buyer');
+    else if (user.role === 'SELLER') setActiveTab('seller');
+    else if (user.role === 'REGISTRAR') setActiveTab('registrar');
+    else if (user.role === 'ADMIN') setActiveTab('admin');
+  }, []);
+
+  // Load synchronized blockchain / sovereign cloud ledger snapshot
+  const loadLedger = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
+    setSyncing(true);
+    try {
+      const snapshot = await fetchLedgerSnapshot();
+      setNetworkMode(snapshot.mode);
+      setBlockNumber(snapshot.blockNumber || 0);
+      setIsEmergencyFrozen(Boolean(snapshot.emergencyFreeze));
+      setPlots(snapshot.plots || []);
+      setOfficers(snapshot.officers || []);
+      setTransactions(snapshot.transactions || []);
+
+      setSelectedPlot((prev) => {
+        if (!prev) return null;
+        return (snapshot.plots || []).find((p) => Number(p.id) === Number(prev.id)) || null;
+      });
+    } catch (err) {
+      console.error('Ledger synchronization error:', err);
+      showToast('Failed to synchronize cadastre state.', 'error');
+    } finally {
+      setLoading(false);
+      setSyncing(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    loadLedger(true);
+  }, [loadLedger]);
+
+  const handleAuthSuccess = (user) => {
+    if (
+      user.role === 'REGISTRAR' &&
+      (user.status === 'PENDING_APPROVAL' || user.status === 'REJECTED')
+    ) {
+      showToast(
+        'Clearance Pending: Sub-Registrar credentials require Chief Administrator approval.',
+        'info'
+      );
+      return;
+    }
+
+    setAppUser(user);
+    if (!isMetaMaskConnected) {
+      setAccount(user.walletAddress || ZERO_ADDRESS);
+    }
+    showToast(`Session verified: Signed in as ${user.name} (${user.role}).`, 'success');
 
     if (user.role === 'BUYER') setActiveTab('buyer');
     else if (user.role === 'SELLER') setActiveTab('seller');
@@ -93,447 +173,350 @@ export default function App() {
   const handleLogout = () => {
     logoutUser();
     setAppUser(null);
-    setAccount('0x0000000000000000000000000000000000000000');
-    setActiveTab('verify');
-    showToast("Logged out successfully.");
-    setIsAuthModalOpen(true);
+    setIsMetaMaskConnected(false);
+    setAccount(ZERO_ADDRESS);
+    if (['buyer', 'seller', 'registrar', 'admin'].includes(activeTab)) {
+      setActiveTab('verify');
+    }
+    showToast('Signed out of sovereign session.', 'info');
   };
 
-  // Connect MetaMask if user prefers browser wallet
+  // Optional browser Web3 wallet bridge
   const connectMetaMask = async () => {
     if (window.ethereum) {
       try {
         const provider = new ethers.BrowserProvider(window.ethereum);
-        const accounts = await provider.send("eth_requestAccounts", []);
+        const accounts = await provider.send('eth_requestAccounts', []);
         if (accounts.length > 0) {
           setAccount(accounts[0]);
           setIsMetaMaskConnected(true);
-          showToast(`MetaMask Connected: ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`);
+          showToast(
+            `Browser Web3 Wallet Connected: ${shortenAddress(accounts[0], 6, 4)}`,
+            'success'
+          );
         }
       } catch (err) {
-        showToast("MetaMask connection failed: " + err.message, "error");
+        showToast('Wallet connection declined: ' + (err.reason || err.message), 'error');
       }
     } else {
-      showToast("MetaMask not found. Running in Local Node simulation mode.", "info");
+      showToast(
+        'No browser wallet extension detected. Built-in ZameenChain cryptographic key signer is active.',
+        'info'
+      );
     }
   };
 
-  // Fetch all plots from Smart Contract
-  const loadPlots = async () => {
-    setLoading(true);
-    try {
-      const contract = await getContract();
-      const rawPlots = await contract.getAllPlots();
-      
-      const formatted = rawPlots.map((p) => ({
-        id: Number(p.id),
-        kdaPlotNumber: p.kdaPlotNumber,
-        schemeName: p.schemeName,
-        sector: p.sector,
-        plotNumber: Number(p.plotNumber),
-        squareYards: Number(p.squareYards),
-        plotCategory: p.plotCategory,
-        latitude: p.latitude,
-        longitude: p.longitude,
-        currentOwner: p.currentOwner,
-        ipfsDeedHash: p.ipfsDeedHash,
-        price: p.price,
-        status: Number(p.status),
-        isDisputed: p.isDisputed,
-        disputeReason: p.disputeReason,
-        registrationTimestamp: Number(p.registrationTimestamp)
-      }));
-
-      setPlots(formatted);
-    } catch (err) {
-      console.warn("Blockchain node unavailable (remote Vercel mode), using verified cadastre registry cache:", err);
-      // Fallback Seeded Karachi Cadastre Plots for live public demonstration
-      const fallbackPlots = [
-        {
-          id: 1,
-          kdaPlotNumber: "KDA-SCH33-SEC14A-P102",
-          schemeName: "Scheme 33 - Gulshan-e-Kaneez Fatima",
-          sector: "Sector 14-A",
-          plotNumber: 102,
-          squareYards: 240,
-          plotCategory: "Residential",
-          latitude: "24.9654",
-          longitude: "67.1234",
-          currentOwner: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-          ipfsDeedHash: "QmSCH33KaneezFatimaDeedScannedDocHash102",
-          price: ethers.parseEther("1.5"),
-          status: 1, // ForSale
-          isDisputed: false,
-          disputeReason: "",
-          registrationTimestamp: Math.floor(Date.now() / 1000) - 86400 * 30
-        },
-        {
-          id: 2,
-          kdaPlotNumber: "KDA-GLSHN-BLK07-P405",
-          schemeName: "Gulshan-e-Iqbal",
-          sector: "Block 7",
-          plotNumber: 405,
-          squareYards: 500,
-          plotCategory: "Residential",
-          latitude: "24.9180",
-          longitude: "67.0971",
-          currentOwner: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-          ipfsDeedHash: "QmGulshanBlock7AllotmentOrderDeedHash405",
-          price: ethers.parseEther("4.0"),
-          status: 1, // ForSale
-          isDisputed: false,
-          disputeReason: "",
-          registrationTimestamp: Math.floor(Date.now() / 1000) - 86400 * 60
-        },
-        {
-          id: 3,
-          kdaPlotNumber: "KDA-CLFTN-BLK05-C012",
-          schemeName: "Clifton Waterfront Commercial",
-          sector: "Block 5",
-          plotNumber: 12,
-          squareYards: 1000,
-          plotCategory: "Commercial",
-          latitude: "24.8138",
-          longitude: "67.0300",
-          currentOwner: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-          ipfsDeedHash: "QmCliftonCommercialHighrisePermitHash012",
-          price: ethers.parseEther("0"),
-          status: 0, // Registered
-          isDisputed: false,
-          disputeReason: "",
-          registrationTimestamp: Math.floor(Date.now() / 1000) - 86400 * 90
-        },
-        {
-          id: 4,
-          kdaPlotNumber: "KDA-SURJ-SEC07D-P789",
-          schemeName: "Surjani Town",
-          sector: "Sector 7-D",
-          plotNumber: 789,
-          squareYards: 120,
-          plotCategory: "Residential",
-          latitude: "25.0210",
-          longitude: "67.0650",
-          currentOwner: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-          ipfsDeedHash: "QmSurjaniSector7DAllotmentSanadHash789",
-          price: ethers.parseEther("0"),
-          status: 3, // Disputed
-          isDisputed: true,
-          disputeReason: "Sindh High Court Stay Order #SHC-2026/412 (Encroachment claim pending)",
-          registrationTimestamp: Math.floor(Date.now() / 1000) - 86400 * 120
-        }
-      ];
-      setPlots(fallbackPlots);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPlots();
-  }, []);
-
-  // Get active signer based on authenticated user or MetaMask
-  const getActiveSigner = async () => {
-    if (isMetaMaskConnected && window.ethereum) {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      return await provider.getSigner();
-    }
-
-    if (!currentUser) {
-      setIsAuthModalOpen(true);
-      throw new Error("Please log in or register first to perform blockchain transactions.");
-    }
-
-    // Map role to signer private key
-    const roleKey = currentUser.role;
-    let privKey = currentUser.privateKey;
-    if (!privKey) {
-      if (roleKey === 'REGISTRAR' || roleKey === 'ADMIN') privKey = SIMULATED_ROLES.REGISTRAR.privateKey;
-      else if (roleKey === 'SELLER') privKey = SIMULATED_ROLES.OWNER1.privateKey;
-      else if (roleKey === 'BUYER') privKey = SIMULATED_ROLES.BUYER.privateKey;
-    }
-
-    const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-    return new ethers.Wallet(privKey, provider);
+  // Resolve plot object safely whether plot or plotId is passed
+  const resolvePlotTarget = (plotOrId) => {
+    if (!plotOrId) return null;
+    if (typeof plotOrId === 'object') return plotOrId;
+    return plots.find((p) => Number(p.id) === Number(plotOrId)) || null;
   };
 
   // 1. Register Officer
   const handleRegisterOfficer = async (officerData) => {
     try {
-      const signer = await getActiveSigner();
-      const contract = await getContract(signer);
-
-      // Check if already active on blockchain to prevent duplicate registration revert
-      try {
-        const existing = await contract.registrarOfficers(officerData.address);
-        if (existing && existing.isActive) {
-          setOfficers((prev) => [...prev, officerData]);
-          return;
-        }
-      } catch (checkErr) {
-        // Ignore check failure and proceed with transaction
+      const res = await ledgerRegisterOfficer(currentUser, isMetaMaskConnected, officerData);
+      await loadLedger(false);
+      if (res?.alreadyActive) {
+        showToast(`Officer ${officerData.name} is already accredited on-chain.`, 'info');
+      } else {
+        showToast(`Sub-Registrar ${officerData.name} accredited on ZameenChain!`, 'success');
       }
-
-      const tx = await contract.registerRegistrarOfficer(
-        officerData.address,
-        officerData.name,
-        officerData.badgeNumber,
-        officerData.districtBranch
-      );
-      showToast("Registering government officer on blockchain...");
-      await tx.wait();
-      
-      setOfficers((prev) => [...prev, officerData]);
-      showToast(`✅ Officer ${officerData.name} registered and accredited!`);
     } catch (err) {
-      const errStr = (err.reason || err.shortMessage || err.message || "").toLowerCase();
-      if (errStr.includes("already registered") || errStr.includes("already active")) {
-        setOfficers((prev) => [...prev, officerData]);
-        return;
-      }
-      console.warn("Officer on-chain registration:", err);
-      const cleanReason = err.reason || "Officer registered in database (on-chain sync pending).";
-      showToast(cleanReason, "info");
-    }
-  };
-
-  // Remove Officer from local accredited list
-  const handleRemoveOfficer = (identifier) => {
-    if (!identifier) return;
-    setOfficers((prev) =>
-      prev.filter(
-        (o) =>
-          o.address?.toLowerCase() !== identifier?.toLowerCase() &&
-          o.badgeNumber !== identifier &&
-          o.name !== identifier
-      )
-    );
-  };
-
-  // 2. Register Plot
-  const handleRegisterPlot = async (formData) => {
-    try {
-      const signer = await getActiveSigner();
-      const contract = await getContract(signer);
-
-      const input = {
-        kdaPlotNumber: formData.kdaPlotNumber,
-        schemeName: formData.schemeName,
-        sector: formData.sector,
-        plotNumber: formData.plotNumber,
-        squareYards: formData.squareYards,
-        plotCategory: formData.plotCategory,
-        latitude: formData.latitude,
-        longitude: formData.longitude,
-        owner: formData.owner,
-        ipfsDeedHash: formData.ipfsDeedHash
-      };
-
-      const tx = await contract.registerPlot(input);
-      showToast("Transaction submitted to blockchain... Mining block.");
-      await tx.wait();
-      showToast(`✅ Successfully registered plot ${formData.kdaPlotNumber}!`);
-      loadPlots();
-    } catch (err) {
-      showToast(err.reason || err.message, "error");
+      showToast(err.reason || err.message || 'Officer accreditation failed.', 'error');
       throw err;
     }
   };
 
-  // 3. List Plot For Sale
-  const handleListForSale = async (plot) => {
-    const priceInput = window.prompt(`Enter listing price in ETH for ${plot.kdaPlotNumber}:`, "2.5");
-    if (!priceInput) return;
-
+  // Revoke Officer
+  const handleRemoveOfficer = async (officerAddress) => {
     try {
-      const priceWei = ethers.parseEther(priceInput);
-      const signer = await getActiveSigner();
-      const contract = await getContract(signer);
-
-      const tx = await contract.listPlotForSale(plot.id, priceWei);
-      showToast("Listing property for sale on blockchain...");
-      await tx.wait();
-      showToast(`🏷️ Plot ${plot.kdaPlotNumber} listed for ${priceInput} ETH!`);
-      loadPlots();
+      await ledgerRevokeOfficer(currentUser, isMetaMaskConnected, officerAddress);
+      await loadLedger(false);
     } catch (err) {
-      showToast(err.reason || err.message, "error");
+      console.warn('Revoke officer warning:', err);
     }
+  };
+
+  // 2. Register Primary Plot Allotment
+  const handleRegisterPlot = async (formData) => {
+    try {
+      const res = await ledgerRegisterPlot(currentUser, isMetaMaskConnected, formData);
+      showToast(
+        `Digital Sanad minted for ${formData.kdaPlotNumber.trim().toUpperCase()} (${shortenAddress(res.txHash, 8, 6)})`,
+        'success'
+      );
+      await loadLedger(false);
+    } catch (err) {
+      showToast(err.reason || err.message || 'Plot registration failed.', 'error');
+      throw err;
+    }
+  };
+
+  // 3. Open Interactive Modal for Listing Plot
+  const openListForSaleModal = (plotOrId) => {
+    if (!currentUser) {
+      showToast('Please sign in as the registered property owner to list a parcel.', 'info');
+      setIsAuthModalOpen(true);
+      return;
+    }
+    const targetPlot = resolvePlotTarget(plotOrId);
+    if (!targetPlot) return;
+    setActionModalState({ type: 'LIST_PLOT', plot: targetPlot });
   };
 
   // 4. Delist Plot
   const handleDelist = async (plotId) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     try {
-      const signer = await getActiveSigner();
-      const contract = await getContract(signer);
-      const tx = await contract.delistPlot(plotId);
-      showToast("Delisting property...");
-      await tx.wait();
-      showToast("Plot delisted successfully!");
-      loadPlots();
+      await ledgerDelistPlot(currentUser, isMetaMaskConnected, plotId);
+      showToast('Property withdrawn from marketplace.', 'success');
+      await loadLedger(false);
     } catch (err) {
-      showToast(err.reason || err.message, "error");
+      showToast(err.reason || err.message || 'Failed to delist property.', 'error');
     }
   };
 
-  // 5. Deposit Escrow
-  const handleDepositEscrow = async (plot) => {
-    const confirm = window.confirm(`Deposit ${ethers.formatEther(plot.price)} ETH into Smart Contract Escrow for ${plot.kdaPlotNumber}? Funds will be locked until KDA approves deed transfer.`);
-    if (!confirm) return;
-
-    try {
-      const signer = await getActiveSigner();
-      const contract = await getContract(signer);
-
-      const tx = await contract.depositEscrow(plot.id, { value: plot.price });
-      showToast("Depositing funds into Smart Contract Escrow...");
-      await tx.wait();
-      showToast(`🤝 Escrow initialized for ${plot.kdaPlotNumber}! Awaiting KDA Registrar approval.`);
-      loadPlots();
-    } catch (err) {
-      showToast(err.reason || err.message, "error");
+  // 5. Open Interactive Modal for Atomic Escrow Deposit
+  const openDepositEscrowModal = (plotOrId) => {
+    if (!currentUser) {
+      showToast('Sign in or select a Verified Citizen Role to initiate an Atomic Escrow purchase.', 'info');
+      setIsAuthModalOpen(true);
+      return;
     }
+    const targetPlot = resolvePlotTarget(plotOrId);
+    if (!targetPlot) return;
+    setActionModalState({ type: 'DEPOSIT_ESCROW', plot: targetPlot });
   };
 
-  // 6. Approve & Complete Transfer (KDA Registrar)
+  // 6. KDA Registrar: Certify Deed Transfer & Release Escrow
   const handleApproveTransfer = async (plotId) => {
     try {
-      const signer = await getActiveSigner();
-      const contract = await getContract(signer);
-
-      const newDeedHash = `QmTransferredDeedVerified${Date.now()}`;
-      const tx = await contract.approveAndCompleteTransfer(plotId, newDeedHash);
-      showToast("KDA Registrar certifying legal transfer & releasing escrow funds...");
-      await tx.wait();
-      showToast(`🎉 Transfer complete! Escrow funds released to seller and ownership transferred.`);
-      loadPlots();
+      const res = await ledgerApproveTransfer(currentUser, isMetaMaskConnected, plotId);
+      showToast(
+        `Transfer certified! Legal Sanad mutated & escrow released (${shortenAddress(res.txHash, 8, 6)}).`,
+        'success'
+      );
+      await loadLedger(false);
     } catch (err) {
-      showToast(err.reason || err.message, "error");
+      showToast(err.reason || err.message || 'Transfer certification failed.', 'error');
     }
   };
 
-  // 7. Cancel Escrow & Refund
-  const handleCancelEscrow = async (plotId) => {
-    try {
-      const signer = await getActiveSigner();
-      const contract = await getContract(signer);
-
-      const tx = await contract.cancelEscrow(plotId);
-      showToast("Cancelling escrow deal...");
-      await tx.wait();
-      showToast("Escrow cancelled and funds refunded to buyer.");
-      loadPlots();
-    } catch (err) {
-      showToast(err.reason || err.message, "error");
+  // 7. Open Interactive Modal for Cancelling Escrow
+  const openCancelEscrowModal = (plotOrId) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
     }
+    const targetPlot = resolvePlotTarget(plotOrId);
+    if (!targetPlot) return;
+    setActionModalState({ type: 'CANCEL_ESCROW', plot: targetPlot });
   };
 
-  // 8. Flag Dispute / Stay Order
-  const handleFlagDispute = async (plotId) => {
-    const reason = window.prompt("Enter Court Case # or Stay Order Reason:", "Sindh High Court Stay Order #SHC-2026/911");
-    if (!reason) return;
-
-    try {
-      const signer = await getActiveSigner();
-      const contract = await getContract(signer);
-
-      const tx = await contract.flagDispute(plotId, reason);
-      showToast("Freezing property on blockchain...");
-      await tx.wait();
-      showToast(`🚨 Property frozen under Court Stay Order!`);
-      loadPlots();
-    } catch (err) {
-      showToast(err.reason || err.message, "error");
+  // 8. Open Interactive Modal for Enforcing Court Stay Order
+  const openFlagDisputeModal = (plotOrId) => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
     }
+    const targetPlot = resolvePlotTarget(plotOrId);
+    if (!targetPlot) return;
+    setActionModalState({ type: 'FLAG_DISPUTE', plot: targetPlot });
   };
 
-  // 9. Resolve Dispute
+  // 9. Resolve Court Stay Order
   const handleResolveDispute = async (plotId) => {
     try {
-      const signer = await getActiveSigner();
-      const contract = await getContract(signer);
-
-      const tx = await contract.resolveDispute(plotId);
-      showToast("Lifting court stay order...");
-      await tx.wait();
-      showToast("Stay order resolved! Property is unencumbered.");
-      loadPlots();
+      await ledgerResolveDispute(currentUser, isMetaMaskConnected, plotId);
+      showToast('Judicial Stay Order lifted! Property restored to clean title.', 'success');
+      await loadLedger(false);
     } catch (err) {
-      showToast(err.reason || err.message, "error");
+      showToast(err.reason || err.message || 'Failed to lift stay order.', 'error');
     }
   };
 
-  // 10. Fetch Audit Trail
-  const getAuditTrail = async (plotId) => {
+  // Execute confirmed modal transaction
+  const handleActionModalConfirm = async (payload) => {
+    if (!actionModalState) return;
+    const { type, plot } = actionModalState;
+
+    if (type === 'LIST_PLOT') {
+      const res = await ledgerListPlot(
+        currentUser,
+        isMetaMaskConnected,
+        plot.id,
+        payload.priceEth
+      );
+      showToast(
+        `${plot.kdaPlotNumber} listed for ${payload.priceEth} ETH (${shortenAddress(res.txHash, 8, 6)})`,
+        'success'
+      );
+    } else if (type === 'DEPOSIT_ESCROW') {
+      const res = await ledgerDepositEscrow(currentUser, isMetaMaskConnected, plot);
+      showToast(
+        `Funds locked in Atomic Escrow for ${plot.kdaPlotNumber}! Awaiting KDA Registrar stamp (${shortenAddress(res.txHash, 8, 6)}).`,
+        'success'
+      );
+    } else if (type === 'FLAG_DISPUTE') {
+      const res = await ledgerFlagDispute(
+        currentUser,
+        isMetaMaskConnected,
+        plot.id,
+        payload.reason
+      );
+      showToast(
+        res?.autoRefundedBuyer
+          ? `Stay Order enforced on ${plot.kdaPlotNumber}. Active buyer escrow automatically refunded!`
+          : `Judicial Stay Order enforced on ${plot.kdaPlotNumber}.`,
+        'info'
+      );
+    } else if (type === 'CANCEL_ESCROW') {
+      await ledgerCancelEscrow(currentUser, isMetaMaskConnected, plot.id);
+      showToast(`Escrow cancelled for ${plot.kdaPlotNumber} — 100% ETH refunded to buyer.`, 'info');
+    }
+
+    await loadLedger(false);
+  };
+
+  // Toggle City-Wide Emergency Freeze
+  const handleToggleEmergencyFreeze = async () => {
+    const nextState = !isEmergencyFrozen;
     try {
-      const contract = await getContract();
-      return await contract.getPlotHistory(plotId);
+      await ledgerSetEmergencyFreeze(currentUser, isMetaMaskConnected, nextState);
+      setIsEmergencyFrozen(nextState);
+      await loadLedger(false);
+      showToast(
+        nextState
+          ? 'EMERGENCY CIRCUIT BREAKER ENGAGED: Karachi Land Market Frozen.'
+          : 'Circuit Breaker Lifted: Karachi Land Market Resumed.',
+        nextState ? 'error' : 'success'
+      );
     } catch (err) {
-      console.error(err);
-      return [];
+      showToast(err.reason || err.message || 'Failed to update freeze state.', 'error');
     }
   };
 
-  const activeRoleObj = currentUser ? {
-    name: currentUser.name,
-    role: currentUser.role,
-    status: currentUser.status || 'ACTIVE',
-    address: currentUser.walletAddress
-  } : {
-    name: 'Public Guest',
-    role: 'PUBLIC',
-    status: 'ACTIVE',
-    address: '0x0000000000000000000000000000000000000000'
+  // Reset Cloud Demo Ledger to clean seeded state
+  const handleResetDemoLedger = async () => {
+    resetCloudLedgerToDefaults();
+    await ledgerSetEmergencyFreeze(currentUser, isMetaMaskConnected, false);
+    await loadLedger(false);
+    showToast('Karachi Cadastral Cloud Ledger restored to initial verified seed records.', 'success');
   };
+
+  // 10. Memoized Audit Trail Lookup for PlotModal
+  const getAuditTrail = useCallback(async (plotId) => {
+    return await ledgerGetPlotHistory(plotId);
+  }, []);
+
+  const activeRoleObj = currentUser
+    ? {
+        name: currentUser.name,
+        role: currentUser.role,
+        status: currentUser.status || 'ACTIVE',
+        address: isMetaMaskConnected ? account : currentUser.walletAddress || account
+      }
+    : {
+        name: 'Public Citizen',
+        role: 'PUBLIC',
+        status: 'ACTIVE',
+        address: isMetaMaskConnected ? account : ZERO_ADDRESS
+      };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      
+    <div className="min-h-screen bg-[#060b13] text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
+      {/* Subtle Ambient Sovereign Radial Backdrop */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-40 left-1/4 w-[36rem] h-[36rem] bg-emerald-500/[0.04] rounded-full blur-3xl" />
+        <div className="absolute top-1/3 right-1/5 w-[30rem] h-[30rem] bg-cyan-500/[0.04] rounded-full blur-3xl" />
+      </div>
+
       {/* Toast Notification */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 p-4 rounded-2xl shadow-2xl border text-xs font-medium flex items-center gap-2.5 animate-slideUp ${
-          toast.type === 'error'
-            ? 'bg-rose-950/90 border-rose-600 text-rose-200'
-            : toast.type === 'info'
-            ? 'bg-cyan-950/90 border-cyan-600 text-cyan-200'
-            : 'bg-emerald-950/90 border-emerald-600 text-emerald-200'
-        }`}>
+        <div
+          className={`fixed bottom-6 right-6 z-50 max-w-md p-4 rounded-2xl shadow-2xl border text-xs font-medium flex items-center gap-3 backdrop-blur-xl animate-slideUp ${
+            toast.type === 'error'
+              ? 'bg-rose-950/95 border-rose-500/60 text-rose-100'
+              : toast.type === 'info'
+              ? 'bg-cyan-950/95 border-cyan-500/60 text-cyan-100'
+              : 'bg-emerald-950/95 border-emerald-500/60 text-emerald-100'
+          }`}
+        >
           {toast.type === 'error' ? (
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
           ) : (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <CheckCircle2
+              className={`w-4 h-4 shrink-0 ${
+                toast.type === 'info' ? 'text-cyan-400' : 'text-emerald-400'
+              }`}
+            />
           )}
-          <span>{toast.message}</span>
+          <span className="leading-relaxed">{toast.message}</span>
         </div>
       )}
 
-      {/* Top Navbar */}
+      {/* Top Executive Navbar */}
       <Navbar
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
-        account={account}
+        account={activeRoleObj.address}
         isMetaMaskConnected={isMetaMaskConnected}
         connectMetaMask={connectMetaMask}
+        networkMode={networkMode}
+        blockNumber={blockNumber}
+        isEmergencyFrozen={isEmergencyFrozen}
+        onSelectHome={() => setActiveTab('verify')}
       />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Karachi Land Stats */}
+      {/* Global City-Wide Emergency Circuit Breaker Banner */}
+      {isEmergencyFrozen && (
+        <div className="relative z-20 bg-rose-950/90 border-b border-rose-500/50 backdrop-blur-md">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2.5 text-rose-200">
+              <span className="p-1 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-400">
+                <Lock className="w-3.5 h-3.5" />
+              </span>
+              <span>
+                <strong className="text-white uppercase tracking-wider font-bold">
+                  Executive Circuit Breaker Engaged:
+                </strong>{' '}
+                Karachi land listings, plot minting, and new escrow locks are suspended by order of the Chief Administrator. Buyers with existing escrows may still claim 100% refunds.
+              </span>
+            </div>
+
+            {currentUser?.role === 'ADMIN' && (
+              <button
+                onClick={handleToggleEmergencyFreeze}
+                className="px-3 py-1 rounded-lg bg-rose-500 hover:bg-rose-400 text-white font-bold text-[11px] shrink-0 transition cursor-pointer"
+              >
+                Lift Freeze Now
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Container */}
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Karachi Cadastral Telemetry Banner */}
         <StatsBanner plots={plots} />
 
         {/* Executive Segmented Navigation Dock */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
-          
-          <div className="flex items-center gap-2 overflow-x-auto p-1.5 rounded-2xl bg-slate-900/60 backdrop-blur-xl border border-white/[0.08] shadow-xl">
-            
-            {/* Section 1: Public Cadastre & GIS */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-8">
+          <div className="flex items-center gap-1.5 overflow-x-auto p-1.5 rounded-2xl bg-slate-900/70 backdrop-blur-xl border border-white/[0.08] shadow-xl">
+            {/* Section 1: Public Cadastre, GIS & Explorer */}
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setActiveTab('verify')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   activeTab === 'verify'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/25 scale-[1.02]'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
@@ -543,45 +526,66 @@ export default function App() {
 
               <button
                 onClick={() => setActiveTab('map')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   activeTab === 'map'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/25 scale-[1.02]'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
                 <MapIcon className="w-3.5 h-3.5" />
-                <span>GIS Radar Map</span>
+                <span>GIS Radar</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('directory')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   activeTab === 'directory'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/25 scale-[1.02]'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>All Plots</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${activeTab === 'directory' ? 'bg-slate-950 text-emerald-400 font-bold' : 'bg-slate-800 text-slate-400'}`}>
+                <span>Cadastre</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono leading-none ${
+                    activeTab === 'directory'
+                      ? 'bg-slate-950 text-emerald-400 font-bold'
+                      : 'bg-slate-800 text-slate-400'
+                  }`}
+                >
                   {plots.length}
                 </span>
               </button>
+
+              <button
+                onClick={() => setActiveTab('explorer')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                  activeTab === 'explorer'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
+                    : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
+                }`}
+              >
+                <Activity className="w-3.5 h-3.5" />
+                <span>Block Explorer</span>
+              </button>
             </div>
 
-            {/* Subtle Divider */}
-            <div className="h-5 w-[1px] bg-white/[0.1] mx-1 hidden sm:block" />
+            <div className="h-5 w-[1px] bg-white/[0.1] mx-1 hidden sm:block shrink-0" />
 
-            {/* Section 2: Marketplace & Escrow */}
+            {/* Section 2: Citizen Marketplace & Owner Console */}
             <div className="flex items-center gap-1">
               <button
                 onClick={() => {
-                  if (!currentUser) setIsAuthModalOpen(true);
-                  else setActiveTab('buyer');
+                  if (!currentUser) {
+                    showToast('Select a Citizen Role or Sign In to open the Buyer Portal.', 'info');
+                    setIsAuthModalOpen(true);
+                  } else {
+                    setActiveTab('buyer');
+                  }
                 }}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   activeTab === 'buyer'
-                    ? 'bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 font-bold shadow-lg shadow-cyan-500/25 scale-[1.02]'
+                    ? 'bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 font-bold shadow-lg shadow-cyan-500/20'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
@@ -591,12 +595,16 @@ export default function App() {
 
               <button
                 onClick={() => {
-                  if (!currentUser) setIsAuthModalOpen(true);
-                  else setActiveTab('seller');
+                  if (!currentUser) {
+                    showToast('Select a Seller Role or Sign In to manage owned land titles.', 'info');
+                    setIsAuthModalOpen(true);
+                  } else {
+                    setActiveTab('seller');
+                  }
                 }}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   activeTab === 'seller'
-                    ? 'bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 font-bold shadow-lg shadow-teal-500/25 scale-[1.02]'
+                    ? 'bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 font-bold shadow-lg shadow-teal-500/20'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
@@ -605,77 +613,123 @@ export default function App() {
               </button>
             </div>
 
-            {/* Subtle Divider */}
-            <div className="h-5 w-[1px] bg-white/[0.1] mx-1 hidden sm:block" />
+            <div className="h-5 w-[1px] bg-white/[0.1] mx-1 hidden sm:block shrink-0" />
 
-            {/* Section 3: Government Administration */}
+            {/* Section 3: Sovereign Governance */}
             <div className="flex items-center gap-1">
               <button
                 onClick={() => {
-                  if (!currentUser) setIsAuthModalOpen(true);
-                  else setActiveTab('registrar');
+                  if (!currentUser) {
+                    setIsAuthModalOpen(true);
+                  } else {
+                    setActiveTab('registrar');
+                  }
                 }}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   activeTab === 'registrar'
-                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold shadow-lg shadow-amber-500/25 scale-[1.02]'
+                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold shadow-lg shadow-amber-500/25'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                <ShieldAlert
+                  className={`w-3.5 h-3.5 ${
+                    activeTab === 'registrar' ? 'text-slate-950' : 'text-amber-400'
+                  }`}
+                />
                 <span>KDA Terminal</span>
               </button>
 
               <button
                 onClick={() => {
-                  if (!currentUser) setIsAuthModalOpen(true);
-                  else setActiveTab('admin');
+                  if (!currentUser) {
+                    setIsAuthModalOpen(true);
+                  } else {
+                    setActiveTab('admin');
+                  }
                 }}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   activeTab === 'admin'
-                    ? 'bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-slate-950 font-bold shadow-lg shadow-amber-500/30 scale-[1.02]'
+                    ? 'bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-slate-950 font-bold shadow-lg shadow-amber-500/30'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
-                <Crown className="w-3.5 h-3.5 text-amber-400" />
-                <span>Chief Admin (Rayyan)</span>
+                <Crown
+                  className={`w-3.5 h-3.5 ${
+                    activeTab === 'admin' ? 'text-slate-950' : 'text-amber-400'
+                  }`}
+                />
+                <span>Ministry Admin</span>
               </button>
             </div>
-
           </div>
 
-          {/* Sync Button */}
+          {/* Sync Ledger Button */}
           <button
-            onClick={loadPlots}
-            title="Sync Ledger with Blockchain"
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/[0.08] transition shadow-md hover:border-white/20 text-xs font-semibold cursor-pointer shrink-0"
+            onClick={() => loadLedger(false)}
+            disabled={syncing}
+            title="Synchronize Cadastral State"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900/70 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/[0.08] transition shadow-md hover:border-emerald-500/30 text-xs font-semibold cursor-pointer shrink-0"
           >
-            <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Sync Blockchain</span>
+            <RefreshCw
+              className={`w-3.5 h-3.5 text-emerald-400 ${syncing ? 'animate-spin' : ''}`}
+            />
+            <span>{syncing ? 'Syncing...' : 'Sync Ledger'}</span>
           </button>
-
         </div>
 
-        {/* Tab Content Display */}
+        {/* Active Module Viewport */}
         {loading ? (
           <div className="py-24 text-center">
-            <RefreshCw className="w-8 h-8 text-teal-400 animate-spin mx-auto mb-3" />
-            <p className="text-xs text-slate-400">Loading Karachi Land Records from Blockchain...</p>
+            <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin mx-auto mb-3" />
+            <p className="text-xs text-slate-400 font-medium">
+              Synchronizing Karachi Cadastral Ledger & Cryptographic Deeds...
+            </p>
           </div>
         ) : (
           <>
             {activeTab === 'verify' && (
-              <PublicVerification plots={plots} onSelectPlot={setSelectedPlot} />
+              <PublicVerification
+                plots={plots}
+                activeRole={activeRoleObj}
+                onSelectPlot={setSelectedPlot}
+                onDepositEscrow={openDepositEscrowModal}
+              />
             )}
 
             {activeTab === 'map' && (
               <KarachiMap plots={plots} onSelectPlot={setSelectedPlot} />
             )}
 
+            {activeTab === 'directory' && (
+              <PlotsDirectory
+                plots={plots}
+                activeRole={activeRoleObj}
+                isEmergencyFrozen={isEmergencyFrozen}
+                onSelectPlot={setSelectedPlot}
+                onDepositEscrow={openDepositEscrowModal}
+                onListForSale={openListForSaleModal}
+                onDelist={handleDelist}
+                onFlagDispute={openFlagDisputeModal}
+                onResolveDispute={handleResolveDispute}
+              />
+            )}
+
+            {activeTab === 'explorer' && (
+              <LedgerExplorer
+                transactions={transactions}
+                networkMode={networkMode}
+                blockNumber={blockNumber}
+                plotsCount={plots.length}
+              />
+            )}
+
             {activeTab === 'buyer' && (
               <BuyerPortal
                 plots={plots}
                 activeRole={activeRoleObj}
-                onDepositEscrow={handleDepositEscrow}
+                isEmergencyFrozen={isEmergencyFrozen}
+                onDepositEscrow={openDepositEscrowModal}
+                onCancelEscrow={openCancelEscrowModal}
                 onSelectPlot={setSelectedPlot}
               />
             )}
@@ -684,22 +738,10 @@ export default function App() {
               <SellerPortal
                 plots={plots}
                 activeRole={activeRoleObj}
-                onListForSale={handleListForSale}
+                isEmergencyFrozen={isEmergencyFrozen}
+                onListForSale={openListForSaleModal}
                 onDelist={handleDelist}
                 onSelectPlot={setSelectedPlot}
-              />
-            )}
-
-            {activeTab === 'directory' && (
-              <PlotsDirectory
-                plots={plots}
-                activeRole={activeRoleObj}
-                onSelectPlot={setSelectedPlot}
-                onDepositEscrow={handleDepositEscrow}
-                onListForSale={handleListForSale}
-                onDelist={handleDelist}
-                onFlagDispute={handleFlagDispute}
-                onResolveDispute={handleResolveDispute}
               />
             )}
 
@@ -707,11 +749,12 @@ export default function App() {
               <RegistrarPanel
                 plots={plots}
                 activeRole={activeRoleObj}
+                isEmergencyFrozen={isEmergencyFrozen}
                 onSwitchToRegistrar={() => setIsAuthModalOpen(true)}
                 onRegisterPlot={handleRegisterPlot}
                 onRegisterOfficer={handleRegisterOfficer}
                 onApproveTransfer={handleApproveTransfer}
-                onCancelEscrow={handleCancelEscrow}
+                onCancelEscrow={openCancelEscrowModal}
                 officers={officers}
               />
             )}
@@ -720,37 +763,74 @@ export default function App() {
               <AdminPortal
                 currentUser={currentUser}
                 plots={plots}
+                isEmergencyFrozen={isEmergencyFrozen}
+                onToggleEmergencyFreeze={handleToggleEmergencyFreeze}
+                onResetDemoLedger={handleResetDemoLedger}
                 onResolveDispute={handleResolveDispute}
                 onRegisterOfficerOnChain={handleRegisterOfficer}
                 onRemoveOfficer={handleRemoveOfficer}
+                onOpenAuth={() => setIsAuthModalOpen(true)}
                 showToast={showToast}
               />
             )}
           </>
         )}
-
       </main>
 
-      {/* Plot Modal (Sanad & Blockchain History) */}
+      {/* Digital Sanad Certificate & Immutable Chain-of-Title Modal */}
       <PlotModal
         plot={selectedPlot}
         onClose={() => setSelectedPlot(null)}
         getAuditTrail={getAuditTrail}
       />
 
-      {/* Authentication Gateway Modal (Sign In / Register / Role Entry) */}
+      {/* Interactive Transaction & Judicial Order Modal */}
+      <ActionModal
+        modalState={actionModalState}
+        onClose={() => setActionModalState(null)}
+        onConfirm={handleActionModalConfirm}
+      />
+
+      {/* Sovereign Identity & Role Access Gateway */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={handleAuthSuccess}
       />
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950/60 py-6 text-center text-xs text-slate-500">
-        <p>🏛️ ZameenChain • Karachi Urban Land Registry & Anti-Fraud Escrow Protocol</p>
-        <p className="mt-1 text-[11px] text-slate-600">Built for University Capstone Defense • Powered by Ethereum Smart Contracts & IPFS</p>
-      </footer>
+      {/* Sovereign GovTech Footer */}
+      <footer className="relative z-10 border-t border-white/[0.06] bg-[#04080f]/90 backdrop-blur-xl py-6 px-4 text-xs text-slate-400 print:hidden">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <Building2 className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-bold text-slate-200">
+                ZameenChain Sovereign Cadastral Protocol
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Karachi Development Authority (KDA) & Board of Revenue Sindh • Anti-Fraud Atomic Escrow Registry
+              </p>
+            </div>
+          </div>
 
+          <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] font-mono">
+            <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
+              Contract: <span className="text-emerald-400">{shortenAddress(CONTRACT_ADDRESS, 6, 4)}</span>
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
+              Engine:{' '}
+              <span className={networkMode === 'LIVE_EVM' ? 'text-emerald-400' : 'text-cyan-400'}>
+                {networkMode === 'LIVE_EVM' ? 'Ethereum EVM (31337)' : 'Sovereign Cloud Ledger'}
+              </span>
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
+              Block #{blockNumber.toLocaleString()}
+            </span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

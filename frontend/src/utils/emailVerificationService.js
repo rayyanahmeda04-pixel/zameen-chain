@@ -101,7 +101,7 @@ export function verifyOtp(email, enteredCode) {
     // Code is valid! Clear used OTP
     localStorage.removeItem(ACTIVE_OTP_KEY);
     return { valid: true };
-  } catch (e) {
+  } catch {
     return { valid: false, message: "Error verifying code. Please try again." };
   }
 }
