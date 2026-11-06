@@ -41,7 +41,7 @@ async function main() {
   await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`;
   await sql`
     ALTER TABLE users ADD CONSTRAINT users_role_check
-    CHECK (role IN ('ADMIN', 'REGISTRAR', 'SELLER', 'BUYER'));
+    CHECK (role IN ('ADMIN', 'REGISTRAR', 'CITIZEN', 'SELLER', 'BUYER'));
   `;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ACTIVE';`;
 
@@ -85,9 +85,9 @@ async function main() {
       'Aamir Khan',
       'aamir.khan@gmail.com',
       'password123',
-      'SELLER',
+      'CITIZEN',
       'ACTIVE',
-      '42101-9876543-1',
+      NULL,
       NULL,
       NULL,
       '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
@@ -96,9 +96,9 @@ async function main() {
       'Bilal Siddiqui',
       'bilal.siddiqui@gmail.com',
       'password123',
-      'SELLER',
+      'CITIZEN',
       'ACTIVE',
-      '42301-7654321-9',
+      NULL,
       NULL,
       NULL,
       '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'
@@ -107,7 +107,13 @@ async function main() {
       'Hamza Sheikh',
       'hamza.sheikh@gmail.com',
       'password123',
-      'BUYER',
+      'CITIZEN',
+      'ACTIVE',
+      NULL,
+      NULL,
+      NULL,
+      '0x90F79bf6EB2c4f870365E785982E1f101E93b906'
+    )
       'ACTIVE',
       '42201-1234567-3',
       NULL,

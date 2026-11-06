@@ -129,10 +129,9 @@ export default function App() {
 
     setAppUser(user);
     setAccount(user.walletAddress || ZERO_ADDRESS);
-    if (user.role === 'BUYER') setActiveTab('buyer');
-    else if (user.role === 'SELLER') setActiveTab('seller');
-    else if (user.role === 'REGISTRAR') setActiveTab('registrar');
+    if (user.role === 'REGISTRAR') setActiveTab('registrar');
     else if (user.role === 'ADMIN') setActiveTab('admin');
+    else setActiveTab('buyer');
   }, []);
 
   // Load synchronized blockchain / sovereign cloud ledger snapshot
@@ -183,10 +182,9 @@ export default function App() {
     }
     showToast(`Signed in as ${user.name} (${user.role}).`, 'success');
 
-    if (user.role === 'BUYER') selectTab('buyer');
-    else if (user.role === 'SELLER') selectTab('seller');
-    else if (user.role === 'REGISTRAR') selectTab('registrar');
+    if (user.role === 'REGISTRAR') selectTab('registrar');
     else if (user.role === 'ADMIN') selectTab('admin');
+    else selectTab('buyer');
   };
 
   const handleLogout = () => {
@@ -482,21 +480,13 @@ export default function App() {
         onClick: () => selectTab('registrar')
       };
     }
-    if (currentUser.role === 'SELLER') {
-      return {
-        key: 'seller',
-        label: 'My Plots',
-        icon: Home,
-        isActive: activeTab === 'seller',
-        onClick: () => selectTab('seller')
-      };
-    }
+    const isPortfolio = activeTab === 'seller';
     return {
-      key: 'buyer',
-      label: 'Market',
-      icon: ShoppingBag,
-      isActive: activeTab === 'buyer',
-      onClick: () => selectTab('buyer')
+      key: isPortfolio ? 'seller' : 'buyer',
+      label: isPortfolio ? 'My Plots' : 'Market',
+      icon: isPortfolio ? Home : ShoppingBag,
+      isActive: activeTab === 'seller' || activeTab === 'buyer',
+      onClick: () => selectTab(isPortfolio ? 'buyer' : 'seller')
     };
   };
 

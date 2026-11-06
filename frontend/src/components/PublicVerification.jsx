@@ -14,7 +14,8 @@ import {
 import {
   formatEth,
   formatPkrFromWei,
-  resolveWalletLabel
+  resolveOwnerDisplayName,
+  shortenAddress
 } from '../utils/formatters';
 
 export default function PublicVerification({
@@ -289,13 +290,18 @@ export default function PublicVerification({
                 </div>
 
                 <div className="bg-[#FBFBFA] p-3.5 rounded-lg border border-[#E4E4E0] md:col-span-2">
-                  <p className="text-[11px] text-zinc-500 font-medium mb-1">Registered Title Holder</p>
-                  <p className="text-xs sm:text-[13px] font-mono text-[#111315] break-all">
-                    {livePlot.currentOwner}
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-[11px] text-zinc-500 font-medium">Registered Title Holder</p>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-[#065F46] border border-emerald-200">
+                      Verified Citizen
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold text-[#111315]">
+                    {resolveOwnerDisplayName(livePlot.currentOwner)}
                   </p>
-                  <span className="text-[11px] text-[#0B5D46] font-medium">
-                    {resolveWalletLabel(livePlot.currentOwner) || 'Verified On-Chain Title Holder'}
-                  </span>
+                  <p className="text-xs font-mono text-zinc-600 mt-0.5">
+                    {shortenAddress(livePlot.currentOwner, 10, 6)}
+                  </p>
                 </div>
 
                 <div className="bg-[#FBFBFA] p-3.5 rounded-lg border border-[#E4E4E0] tabular-nums">

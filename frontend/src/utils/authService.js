@@ -46,9 +46,8 @@ export const DEFAULT_USERS = [
     name: 'Aamir Khan',
     email: 'aamir.khan@gmail.com',
     password: 'password123',
-    role: 'SELLER',
+    role: 'CITIZEN',
     status: 'ACTIVE',
-    cnic: '42101-9876543-1',
     walletAddress: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
   },
   {
@@ -56,9 +55,8 @@ export const DEFAULT_USERS = [
     name: 'Bilal Siddiqui',
     email: 'bilal.siddiqui@gmail.com',
     password: 'password123',
-    role: 'SELLER',
+    role: 'CITIZEN',
     status: 'ACTIVE',
-    cnic: '42301-7654321-9',
     walletAddress: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'
   },
   {
@@ -66,9 +64,8 @@ export const DEFAULT_USERS = [
     name: 'Hamza Sheikh',
     email: 'hamza.sheikh@gmail.com',
     password: 'password123',
-    role: 'BUYER',
+    role: 'CITIZEN',
     status: 'ACTIVE',
-    cnic: '42201-1234567-3',
     walletAddress: '0x90F79bf6EB2c4f870365E785982E1f101E93b906'
   }
 ];
@@ -89,32 +86,41 @@ export const QUICK_DEMO_ACCOUNTS = [
     role: 'REGISTRAR'
   },
   {
-    label: 'Owner (Scheme 33)',
-    sublabel: 'Aamir Khan',
+    label: 'Citizen (Aamir Khan)',
+    sublabel: 'Scheme 33 Owner',
     email: 'aamir.khan@gmail.com',
     password: 'password123',
-    role: 'SELLER'
+    role: 'CITIZEN'
   },
   {
-    label: 'Owner (Gulshan)',
-    sublabel: 'Bilal Siddiqui',
+    label: 'Citizen (Bilal Siddiqui)',
+    sublabel: 'Gulshan Owner',
     email: 'bilal.siddiqui@gmail.com',
     password: 'password123',
-    role: 'SELLER'
+    role: 'CITIZEN'
   },
   {
-    label: 'Verified Buyer',
-    sublabel: 'Hamza Sheikh',
+    label: 'Citizen (Hamza Sheikh)',
+    sublabel: 'Verified Investor',
     email: 'hamza.sheikh@gmail.com',
     password: 'password123',
-    role: 'BUYER'
+    role: 'CITIZEN'
   }
 ];
 
+export function normalizeUserRole(role) {
+  if (role === 'BUYER' || role === 'SELLER' || role === 'CITIZEN') return 'CITIZEN';
+  return role;
+}
+
 function sanitizeUser(u) {
   if (!u) return null;
-  const { password: _password, ...safeUser } = u;
-  return withCanonicalSeedWallet(safeUser);
+  const { password: _password, cnic: _cnic, ...safeUser } = u;
+  const canonical = withCanonicalSeedWallet(safeUser);
+  return {
+    ...canonical,
+    role: normalizeUserRole(canonical.role)
+  };
 }
 
 // Official seed accounts always resolve to their canonical wallet so that the
@@ -256,7 +262,8 @@ export async function loginUser(email, password) {
  */
 export async function registerUser(userData) {
   const cleanEmail = userData.email.trim().toLowerCase();
-  const initialStatus = userData.role === 'REGISTRAR' ? 'PENDING_APPROVAL' : 'ACTIVE';
+  const targetRole = userData.role === 'REGISTRAR' ? 'REGISTRAR' : 'CITIZEN';
+  const initialStatus = targetRole === 'REGISTRAR' ? 'PENDING_APPROVAL' : 'ACTIVE';
 
   let assignedWallet = userData.walletAddress;
   if (!assignedWallet) {
@@ -279,8 +286,8 @@ export async function registerUser(userData) {
         ${userData.name.trim()}, 
         ${cleanEmail}, 
         ${userData.password}, 
-        ${userData.role}, 
-        ${userData.cnic || null}, 
+        ${targetRole}, 
+        ${null}, 
         ${userData.badgeNumber || null}, 
         ${userData.department || null}, 
         ${assignedWallet},
@@ -296,7 +303,6 @@ export async function registerUser(userData) {
       email: row.email,
       role: row.role,
       status: row.status,
-      cnic: row.cnic || '',
       badgeNumber: row.badge_number || '',
       department: row.department || '',
       walletAddress: row.wallet_address
@@ -320,9 +326,8 @@ export async function registerUser(userData) {
     name: userData.name.trim(),
     email: cleanEmail,
     password: userData.password,
-    role: userData.role,
+    role: targetRole,
     status: initialStatus,
-    cnic: userData.cnic || '',
     badgeNumber: userData.badgeNumber || '',
     department: userData.department || '',
     walletAddress: assignedWallet,

@@ -74,7 +74,9 @@ export default function AdminPortal({
   const disputedPlots = plots.filter((p) => p.isDisputed);
 
   const filteredUsers = allUsers.filter((u) => {
-    const matchesRole = userRoleFilter === 'ALL' || u.role === userRoleFilter;
+    const userRole = u.role === 'BUYER' || u.role === 'SELLER' ? 'CITIZEN' : u.role;
+    const matchesRole =
+      userRoleFilter === 'ALL' || userRole === userRoleFilter || u.role === userRoleFilter;
     const q = userSearchQuery.trim().toLowerCase();
     if (!q) return matchesRole;
     return (
@@ -82,7 +84,6 @@ export default function AdminPortal({
       ((u.name && u.name.toLowerCase().includes(q)) ||
         (u.email && u.email.toLowerCase().includes(q)) ||
         (u.badgeNumber && u.badgeNumber.toLowerCase().includes(q)) ||
-        (u.cnic && u.cnic.toLowerCase().includes(q)) ||
         (u.walletAddress && u.walletAddress.toLowerCase().includes(q)))
     );
   });
@@ -179,7 +180,6 @@ export default function AdminPortal({
   const getRolePill = (role) => {
     if (role === 'ADMIN') return 'bg-[#111315] text-white border-[#111315]';
     if (role === 'REGISTRAR') return 'bg-emerald-50 text-[#065F46] border-emerald-200';
-    if (role === 'SELLER') return 'bg-amber-50 text-amber-800 border-amber-200';
     return 'bg-blue-50 text-blue-800 border-blue-200';
   };
 
@@ -473,13 +473,16 @@ export default function AdminPortal({
               {[
                 { key: 'ALL', label: 'All' },
                 { key: 'REGISTRAR', label: 'Registrars' },
-                { key: 'SELLER', label: 'Owners' },
-                { key: 'BUYER', label: 'Buyers' }
+                { key: 'CITIZEN', label: 'Citizens' }
               ].map(({ key, label }) => {
                 const count =
                   key === 'ALL'
                     ? allUsers.length
-                    : allUsers.filter((u) => u.role === key).length;
+                    : allUsers.filter(
+                        (u) =>
+                          u.role === key ||
+                          (key === 'CITIZEN' && (u.role === 'BUYER' || u.role === 'SELLER'))
+                      ).length;
                 return (
                   <button
                     key={key}

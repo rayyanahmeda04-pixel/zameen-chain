@@ -15,7 +15,7 @@ import {
   formatEth,
   formatPkrFromWei,
   generateDeterministicQrMatrix,
-  resolveWalletLabel,
+  resolveOwnerDisplayName,
   shortenAddress
 } from '../utils/formatters';
 
@@ -23,6 +23,7 @@ export default function PlotModal({ plot, onClose, getAuditTrail }) {
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [copiedField, setCopiedField] = useState(null);
+  const [showFullOwnerKey, setShowFullOwnerKey] = useState(false);
 
   useEffect(() => {
     if (!plot) return;
@@ -56,8 +57,6 @@ export default function PlotModal({ plot, onClose, getAuditTrail }) {
     setCopiedField(key);
     setTimeout(() => setCopiedField(null), 1800);
   };
-
-  const ownerIdentity = resolveWalletLabel(plot.currentOwner);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/45 backdrop-blur-xs animate-fadeIn">
@@ -170,25 +169,48 @@ export default function PlotModal({ plot, onClose, getAuditTrail }) {
 
                 <div className="bg-white p-3.5 sm:p-4 rounded-lg border border-[#E5DFD2] space-y-3">
                   <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-zinc-500 text-[10px] uppercase font-semibold tracking-wider truncate">
-                        Registered Owner {ownerIdentity ? `(${ownerIdentity})` : ''}
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-zinc-500 text-[10px] uppercase font-semibold tracking-wider">
+                        Registered Title Holder
                       </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-[#065F46] border border-emerald-200 shrink-0">
+                        Verified Citizen
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[#FBFBFA] p-2.5 rounded-md border border-[#E5DFD2]">
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-sm font-bold text-[#111315]">
+                          {resolveOwnerDisplayName(plot.currentOwner)}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="font-mono text-[11px] text-zinc-600 break-all">
+                            {showFullOwnerKey ? plot.currentOwner : shortenAddress(plot.currentOwner, 8, 6)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowFullOwnerKey(!showFullOwnerKey)}
+                            className="text-[10px] text-[#0B5D46] hover:underline font-semibold cursor-pointer shrink-0 print:hidden"
+                          >
+                            {showFullOwnerKey ? 'Collapse' : 'Show Full Key'}
+                          </button>
+                        </div>
+                      </div>
+
                       <button
+                        type="button"
                         onClick={() => copyToClipboard(plot.currentOwner, 'owner')}
-                        className="text-zinc-500 hover:text-[#111315] flex items-center gap-1 text-[10px] cursor-pointer shrink-0 print:hidden"
+                        className="text-zinc-600 hover:text-[#111315] flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-white hover:bg-zinc-50 border border-[#D4D4CE] cursor-pointer shrink-0 self-start sm:self-auto print:hidden"
+                        title="Copy public address to clipboard"
                       >
                         {copiedField === 'owner' ? (
-                          <Check className="w-3 h-3 text-[#059669]" />
+                          <Check className="w-3.5 h-3.5 text-[#059669]" />
                         ) : (
-                          <Copy className="w-3 h-3" />
+                          <Copy className="w-3.5 h-3.5" />
                         )}
-                        <span>Copy</span>
+                        <span>{copiedField === 'owner' ? 'Copied' : 'Copy'}</span>
                       </button>
                     </div>
-                    <span className="font-mono text-[#111315] text-[11px] sm:text-xs break-all font-semibold block mt-0.5">
-                      {plot.currentOwner}
-                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2.5 border-t border-[#F0ECE1] tabular-nums">

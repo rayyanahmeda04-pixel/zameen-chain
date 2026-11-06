@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Shield,
   ShieldCheck,
-  ShoppingBag,
   Home,
   Lock,
   Mail,
@@ -21,12 +20,11 @@ import { sendVerificationOtp, verifyOtp } from '../utils/emailVerificationServic
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [mode, setMode] = useState('login');
-  const [selectedRole, setSelectedRole] = useState('BUYER');
+  const [selectedRole, setSelectedRole] = useState('CITIZEN');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [cnic, setCnic] = useState('');
   const [badgeNumber, setBadgeNumber] = useState('');
   const [department, setDepartment] = useState('KDA Scheme 33 Sub-Registry Division');
 
@@ -116,7 +114,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         email,
         password,
         role: selectedRole,
-        cnic,
         badgeNumber,
         department
       });
@@ -394,10 +391,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 {mode === 'signup' && (
                   <div className="space-y-1.5">
                     <label className="text-zinc-700 block font-semibold">Select Account Role</label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {[
-                        { key: 'BUYER', label: 'Buyer', sub: 'Investor', icon: ShoppingBag },
-                        { key: 'SELLER', label: 'Owner', sub: 'Title Holder', icon: Home },
+                        { key: 'CITIZEN', label: 'Citizen', sub: 'Owner & Buyer', icon: Home },
                         { key: 'REGISTRAR', label: 'Registrar', sub: 'KDA Officer', icon: ShieldCheck }
                       ].map((r) => {
                         const Icon = r.icon;
@@ -428,7 +424,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                     <label className="text-zinc-700 block mb-1 font-medium">
                       {selectedRole === 'REGISTRAR'
                         ? 'Officer Full Name & Designation *'
-                        : 'Full Legal Name (As per CNIC) *'}
+                        : 'Full Name *'}
                     </label>
                     <input
                       type="text"
@@ -497,23 +493,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                     </div>
                   </div>
                 )}
-
-                {mode === 'signup' &&
-                  (selectedRole === 'BUYER' || selectedRole === 'SELLER') && (
-                    <div>
-                      <label className="text-zinc-700 block mb-1 font-medium">
-                        NADRA CNIC Number *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="42101-1234567-1"
-                        value={cnic}
-                        onChange={(e) => setCnic(e.target.value)}
-                        className={`${inputClass} font-mono`}
-                      />
-                    </div>
-                  )}
 
                 <div>
                   <label className="text-zinc-700 block mb-1 font-medium">Password *</label>

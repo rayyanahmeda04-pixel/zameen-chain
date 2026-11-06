@@ -107,6 +107,13 @@ export function resolveWalletLabel(addr) {
   return KNOWN_WALLET_IDENTITIES[addr.toLowerCase()] || null;
 }
 
+export function resolveOwnerDisplayName(addr) {
+  if (!addr) return 'Unknown Title Holder';
+  const label = KNOWN_WALLET_IDENTITIES[addr.toLowerCase()];
+  if (!label) return shortenAddress(addr, 6, 4);
+  return label.replace(/\s*\([^)]*\)/g, '').trim();
+}
+
 /**
  * Generate a deterministic 13x13 QR-style boolean matrix from any string (KDA Plot ID + IPFS Hash)
  * Includes authentic 3-corner finder patterns for high-tech scannable aesthetics.
