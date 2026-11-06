@@ -1,15 +1,8 @@
 import React from 'react';
-import {
-  ShieldCheck,
-  AlertOctagon,
-  TrendingUp,
-  Layers,
-  CheckCircle2,
-  Coins
-} from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { toEthNumber, formatPkrFromEth } from '../utils/formatters';
 
-export default function StatsBanner({ plots, compactMobile = false }) {
+export default function StatsBanner({ plots }) {
   const totalPlots = plots.length;
   const totalArea = plots.reduce((acc, p) => acc + Number(p.squareYards || 0), 0);
   const disputedCount = plots.filter((p) => p.isDisputed).length;
@@ -22,158 +15,112 @@ export default function StatsBanner({ plots, compactMobile = false }) {
   );
 
   return (
-    <div className={`mb-5 sm:mb-8 space-y-4 sm:space-y-5 print:hidden ${compactMobile ? 'hidden md:block' : ''}`}>
-      {/* Sovereign Hero Header */}
-      <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden p-5 sm:p-9 border border-white/[0.08] bg-gradient-to-br from-[#0c1829]/95 via-[#070d17]/95 to-[#050911] shadow-2xl backdrop-blur-2xl">
-        {/* Ambient high-tech grid & glows */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-24 w-72 h-72 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+    <section className="mb-6 bg-white border border-[#E4E4E0] rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.04)] print:hidden">
+      {/* Top Sovereign Accent Hairline */}
+      <div className="h-[3px] w-full bg-[#0B5D46]" />
 
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-5 sm:gap-6">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold mb-3 sm:mb-4 backdrop-blur-md">
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-              </span>
-              <span className="tracking-wider uppercase font-bold text-[9px] sm:text-[10px] leading-tight">
-                Govt. of Sindh • Karachi Development Authority (KDA)
-              </span>
-            </div>
-
-            <h1 className="text-xl sm:text-4xl font-black text-white tracking-tight leading-[1.2] sm:leading-[1.15]">
-              Sovereign Karachi Land Cadastre &{' '}
-              <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
-                Anti-Fraud Atomic Escrow
-              </span>
-            </h1>
-
-            <p className="mt-2.5 sm:mt-3 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
-              Eliminating forged allotment files, double-file fraud, and illegal land encroachment across Karachi. Every land parcel is anchored by an immutable cryptographic Sanad, smart-contract escrow vault, and live Sindh High Court injunction enforcement.
-            </p>
+      {/* Upper Institutional Brief */}
+      <div className="p-5 sm:p-7 flex flex-col lg:flex-row lg:items-end justify-between gap-5">
+        <div className="max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#F4F4F1] border border-[#E4E4E0] text-[11px] font-medium text-zinc-700 mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0B5D46] shrink-0" />
+            <span>Government of Sindh • Board of Revenue & KDA</span>
           </div>
 
-          {/* Active Market Liquidity Widget */}
-          <div className="bg-slate-950/80 border border-white/10 rounded-2xl p-3.5 sm:p-4 shrink-0 sm:min-w-[230px] flex sm:block items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-amber-300 mb-0.5 sm:mb-1">
-                <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>Active Market Volume</span>
-              </div>
-              <p className="text-lg sm:text-xl font-black text-white font-mono">
-                {activeMarketEth.toFixed(1)} ETH
-              </p>
-            </div>
-            <p className="text-xs text-emerald-400 font-semibold sm:mt-0.5 text-right sm:text-left">
-              ≈ {formatPkrFromEth(activeMarketEth)}
-            </p>
+          <h1 className="text-xl sm:text-2xl md:text-[28px] font-bold text-[#111315] tracking-[-0.025em] leading-[1.2]">
+            Karachi Sovereign Land Cadastre & Atomic Escrow
+          </h1>
+
+          <p className="mt-2 text-xs sm:text-[13px] text-zinc-600 leading-relaxed">
+            Official cryptographic registry preventing duplicate allotment files, unauthorized mutations, and token-money fraud. Every parcel carries an immutable Form-VII Digital Sanad and live Sindh High Court stay-order screening.
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px] text-zinc-600 font-medium">
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#0B5D46] shrink-0" />
+              Anti-Duplicate File Guard
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#0B5D46] shrink-0" />
+              100% Refundable Smart Escrow
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#0B5D46] shrink-0" />
+              SHC Lis Pendens Lock
+            </span>
           </div>
         </div>
 
-        {/* Security Guarantees Strip */}
-        <div className="relative z-10 mt-4 sm:mt-6 pt-4 sm:pt-5 border-t border-white/[0.08] grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-y-2 gap-x-6 text-[11px] sm:text-xs text-slate-300">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
-            <span>Zero Duplicate Allotments</span>
+        {/* Active Market Volume Callout */}
+        <div className="bg-[#FBFBFA] border border-[#E4E4E0] rounded-lg p-3.5 sm:p-4 shrink-0 sm:min-w-[220px] flex sm:block items-center justify-between gap-3">
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-zinc-500 block">
+              Active Market Volume
+            </span>
+            <p className="text-lg sm:text-2xl font-bold text-[#111315] font-mono tabular-nums mt-0.5">
+              {activeMarketEth.toFixed(1)} ETH
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
-            <span>100% Refundable Smart Escrow</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
-            <span>Sindh High Court Lis Pendens Lock</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-400 shrink-0" />
-            <span>KDA Sub-Registrar Key Sign</span>
-          </div>
+          <p className="text-xs font-medium text-[#0B5D46] sm:mt-0.5 text-right sm:text-left tabular-nums">
+            ≈ {formatPkrFromEth(activeMarketEth)}
+          </p>
         </div>
       </div>
 
-      {/* Telemetry Metric HUD */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-slate-900/55 backdrop-blur-xl border border-white/[0.08] hover:border-emerald-500/40 p-3.5 sm:p-5 rounded-2xl transition-all duration-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-1.5 mb-2.5 sm:mb-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-              <Layers className="w-4 h-4" />
-            </div>
-            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 whitespace-nowrap">
+      {/* 4-Column Hairline Divided Telemetry Bar */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-[#E4E4E0] bg-[#FBFBFA] divide-y sm:divide-y-0 divide-x divide-[#E4E4E0] tabular-nums">
+        <div className="p-3.5 sm:px-6 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-zinc-500 font-medium">Titled Parcels</span>
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-50 text-[#065F46] border border-emerald-200">
               On-Chain
             </span>
           </div>
-          <div>
-            <p className="text-[11px] sm:text-xs text-slate-400 font-medium">Titled Parcels</p>
-            <p className="text-xl sm:text-3xl font-black text-white mt-0.5">{totalPlots}</p>
-            <p className="text-[10px] sm:text-[11px] text-emerald-400/90 font-medium mt-0.5 truncate">
-              Karachi Metro Grid
-            </p>
-          </div>
+          <p className="text-lg sm:text-2xl font-bold text-[#111315] mt-1">{totalPlots}</p>
+          <p className="text-[11px] text-zinc-500 mt-0.5 truncate">Karachi Metro Grid</p>
         </div>
 
-        <div className="bg-slate-900/55 backdrop-blur-xl border border-white/[0.08] hover:border-teal-500/40 p-3.5 sm:p-5 rounded-2xl transition-all duration-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-1.5 mb-2.5 sm:mb-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-400 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-950/60 text-teal-300 border border-teal-800/60 whitespace-nowrap">
-              Surveyed
+        <div className="p-3.5 sm:px-6 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-zinc-500 font-medium">Surveyed Area</span>
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
+              Form-VII
             </span>
           </div>
-          <div>
-            <p className="text-[11px] sm:text-xs text-slate-400 font-medium">Cadastral Area</p>
-            <p className="text-xl sm:text-3xl font-black text-white mt-0.5">
-              {totalArea.toLocaleString()}{' '}
-              <span className="text-[10px] sm:text-xs font-semibold text-slate-400">Sq.Yd</span>
-            </p>
-            <p className="text-[10px] sm:text-[11px] text-teal-400/90 font-medium mt-0.5 truncate">
-              Geo-Referenced Sanads
-            </p>
-          </div>
+          <p className="text-lg sm:text-2xl font-bold text-[#111315] mt-1">
+            {totalArea.toLocaleString()}{' '}
+            <span className="text-xs font-medium text-zinc-500">Sq.Yd</span>
+          </p>
+          <p className="text-[11px] text-zinc-500 mt-0.5 truncate">Geo-Referenced Sanads</p>
         </div>
 
-        <div className="bg-slate-900/55 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/40 p-3.5 sm:p-5 rounded-2xl transition-all duration-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-1.5 mb-2.5 sm:mb-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 whitespace-nowrap">
-              Vault
+        <div className="p-3.5 sm:px-6 sm:py-4 border-t lg:border-t-0 border-[#E4E4E0]">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-zinc-500 font-medium">Marketplace</span>
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200">
+              Escrow
             </span>
           </div>
-          <div>
-            <p className="text-[11px] sm:text-xs text-slate-400 font-medium">Listed & Escrow</p>
-            <p className="text-xl sm:text-3xl font-black text-white mt-0.5">
-              {listedPlots.length}{' '}
-              <span className="text-[10px] sm:text-xs font-semibold text-slate-400">Listed</span>
-            </p>
-            <p className="text-[10px] sm:text-[11px] text-cyan-400 font-medium mt-0.5 truncate">
-              {escrowPlots.length > 0
-                ? `${escrowPlots.length} Locked in Vault`
-                : 'Escrow Ready'}
-            </p>
-          </div>
+          <p className="text-lg sm:text-2xl font-bold text-[#111315] mt-1">
+            {listedPlots.length}{' '}
+            <span className="text-xs font-medium text-zinc-500">Listed</span>
+          </p>
+          <p className="text-[11px] text-zinc-500 mt-0.5 truncate">
+            {escrowPlots.length} Locked in Vault
+          </p>
         </div>
 
-        <div className="bg-slate-900/55 backdrop-blur-xl border border-white/[0.08] hover:border-rose-500/40 p-3.5 sm:p-5 rounded-2xl transition-all duration-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-1.5 mb-2.5 sm:mb-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
-              <AlertOctagon className="w-4 h-4" />
-            </div>
-            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-rose-950/60 text-rose-300 border border-rose-800/60 whitespace-nowrap">
-              Court Lock
+        <div className="p-3.5 sm:px-6 sm:py-4 border-t lg:border-t-0 border-[#E4E4E0]">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-zinc-500 font-medium">Stay Orders</span>
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-50 text-red-800 border border-red-200">
+              SHC Lock
             </span>
           </div>
-          <div>
-            <p className="text-[11px] sm:text-xs text-slate-400 font-medium">Stay Orders</p>
-            <p className="text-xl sm:text-3xl font-black text-white mt-0.5">{disputedCount}</p>
-            <p className="text-[10px] sm:text-[11px] text-rose-400 font-medium mt-0.5 truncate">
-              Transfers Blocked
-            </p>
-          </div>
+          <p className="text-lg sm:text-2xl font-bold text-[#111315] mt-1">{disputedCount}</p>
+          <p className="text-[11px] text-zinc-500 mt-0.5 truncate">Court Frozen Parcels</p>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

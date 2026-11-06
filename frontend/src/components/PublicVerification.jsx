@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Search,
   ShieldAlert,
-  CheckCircle,
+  CheckCircle2,
   FileText,
   AlertTriangle,
   History,
@@ -31,9 +31,9 @@ export default function PublicVerification({
 
   const sampleSearches = [
     { label: 'Scheme 33 (For Sale)', code: 'KDA-SCH33-SEC14A-P102' },
-    { label: 'DHA Phase 8 (Comm.)', code: 'DHA-PH8-ZNB-C214' },
+    { label: 'DHA Phase 8 (Commercial)', code: 'DHA-PH8-ZNB-C214' },
     { label: 'Surjani (Stay Order)', code: 'KDA-SURJ-SEC07D-P789' },
-    { label: 'Forged File Test', code: 'KDA-FAKE-FILE-9999' }
+    { label: 'Forged File Check', code: 'KDA-FAKE-FILE-9999' }
   ];
 
   const performSearch = (query) => {
@@ -98,35 +98,29 @@ export default function PublicVerification({
     activeRole.address.toLowerCase() === livePlot.currentOwner.toLowerCase();
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="space-y-5">
       {/* Search Console Card */}
-      <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden p-5 sm:p-8 md:p-10 border border-white/[0.08] bg-gradient-to-br from-[#0c1626]/90 via-[#070c14]/95 to-[#060b13] shadow-2xl backdrop-blur-2xl">
-        <div className="absolute top-0 right-1/4 w-72 h-72 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold mb-3">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <span className="tracking-wide uppercase font-bold text-[9px] sm:text-[10px]">
-              Instant Public Title & Encumbrance Search
-            </span>
-          </div>
-
-          <h2 className="text-xl sm:text-3xl font-black text-white tracking-tight leading-snug">
+      <div className="bg-white border border-[#E4E4E0] rounded-xl p-5 sm:p-7 shadow-[0_1px_3px_rgba(16,24,40,0.04)]">
+        <div className="max-w-3xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#0B5D46] mb-1.5">
+            Instant Title & Encumbrance Verification
+          </p>
+          <h2 className="text-lg sm:text-xl font-bold text-[#111315] tracking-[-0.02em]">
             Verify Any Karachi Plot File Before Paying Token Money
           </h2>
-          <p className="text-xs sm:text-sm text-slate-300 mt-2 mb-5 sm:mb-6 leading-relaxed">
-            Query the Government of Sindh cryptographic cadastre by KDA/DHA/MDA Allotment ID, Scheme Name, Sector, or Plot Number to confirm legal ownership and check for Sindh High Court stay orders.
+          <p className="text-xs sm:text-[13px] text-zinc-600 mt-1 mb-5 leading-relaxed">
+            Enter a KDA, DHA, or MDA Allotment ID, Scheme Name, Sector, or Plot Number to confirm registered ownership and screen against Sindh High Court stay orders.
           </p>
 
           <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2.5">
             <div className="relative flex-1">
-              <Search className="w-5 h-5 text-slate-400 absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Enter KDA Plot ID, Scheme, or Sector..."
-                className="w-full bg-[#050912]/90 border border-white/10 focus:border-emerald-400 rounded-2xl pl-11 sm:pl-12 pr-10 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none transition shadow-inner"
+                placeholder="e.g. KDA-SCH33-SEC14A-P102 or DHA Phase 8..."
+                className="w-full bg-white border border-[#D4D4CE] focus:border-[#0B5D46] focus:ring-2 focus:ring-[#0B5D46]/15 rounded-lg pl-10 pr-9 py-2.5 text-xs sm:text-sm text-[#111315] placeholder-zinc-400 focus:outline-none transition"
               />
               {searchQuery && (
                 <button
@@ -136,31 +130,31 @@ export default function PublicVerification({
                     setSearched(false);
                     setMatchedPlot(null);
                   }}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-[#111315] cursor-pointer p-1"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
             <button
               type="submit"
-              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs sm:text-sm px-8 py-3.5 rounded-2xl transition-all duration-200 shadow-lg shadow-emerald-500/25 cursor-pointer shrink-0"
+              className="bg-[#111315] hover:bg-[#27272A] text-white font-semibold text-xs sm:text-[13px] px-6 py-2.5 rounded-lg transition cursor-pointer shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
             >
-              Verify Title Now
+              Verify Record
             </button>
           </form>
 
-          <div className="mt-4 space-y-1.5 sm:space-y-0 sm:flex sm:flex-wrap sm:items-center sm:gap-2 text-xs">
-            <span className="text-slate-400 font-medium block sm:inline text-[11px] sm:text-xs">
-              Quick Test Lookups:
+          <div className="mt-4 pt-3.5 border-t border-[#F0F0EC] flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
+            <span className="text-zinc-500 font-medium text-[11px] shrink-0">
+              Sample Queries:
             </span>
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 sm:pb-0 sm:flex-wrap">
               {sampleSearches.map((item, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => handleQuickSearch(item.code)}
-                  className="bg-slate-900/80 hover:bg-slate-800 border border-white/[0.08] hover:border-emerald-500/40 text-slate-300 hover:text-white px-3 py-1.5 rounded-xl transition font-mono text-[11px] cursor-pointer whitespace-nowrap shrink-0"
+                  className="bg-[#F7F7F5] hover:bg-[#ECECE7] border border-[#E4E4E0] text-zinc-700 hover:text-[#111315] px-2.5 py-1 rounded-md transition text-[11px] font-medium cursor-pointer whitespace-nowrap shrink-0"
                 >
                   {item.label}
                 </button>
@@ -172,20 +166,20 @@ export default function PublicVerification({
 
       {/* Verification Output */}
       {searched && (
-        <div className="transition-all animate-fadeIn">
+        <div className="animate-fadeIn">
           {matchingPlots.length > 1 && (
-            <div className="mb-4 p-3 bg-slate-900/80 border border-white/[0.08] rounded-2xl flex items-center gap-2 overflow-x-auto no-scrollbar text-xs">
-              <span className="text-slate-400 font-medium shrink-0">
-                Matching ({matchingPlots.length}):
+            <div className="mb-3 p-2.5 bg-white border border-[#E4E4E0] rounded-lg flex items-center gap-2 overflow-x-auto no-scrollbar text-xs">
+              <span className="text-zinc-500 font-medium shrink-0">
+                Matches ({matchingPlots.length}):
               </span>
               {matchingPlots.map((mp) => (
                 <button
                   key={mp.id}
                   onClick={() => setMatchedPlot(mp)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono transition cursor-pointer shrink-0 whitespace-nowrap ${
+                  className={`px-2.5 py-1 rounded-md text-xs font-mono transition cursor-pointer shrink-0 whitespace-nowrap ${
                     livePlot?.id === mp.id
-                      ? 'bg-emerald-500 text-slate-950 font-bold'
-                      : 'bg-slate-800 text-slate-300 hover:text-white'
+                      ? 'bg-[#111315] text-white font-semibold'
+                      : 'bg-[#F7F7F5] text-zinc-700 hover:bg-zinc-200/70'
                   }`}
                 >
                   {mp.kdaPlotNumber}
@@ -195,187 +189,197 @@ export default function PublicVerification({
           )}
 
           {livePlot ? (
-            <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/[0.08] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
-              {/* Banner */}
+            <div className="bg-white border border-[#E4E4E0] rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.04)]">
+              {/* Result Status Header */}
               <div
-                className={`p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b ${
+                className={`p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b ${
                   livePlot.isDisputed
-                    ? 'bg-rose-950/30 border-rose-800/40 text-rose-200'
-                    : 'bg-emerald-950/30 border-emerald-800/40 text-emerald-200'
+                    ? 'bg-red-50/70 border-red-200'
+                    : 'bg-emerald-50/60 border-emerald-200/80'
                 }`}
               >
                 <div className="flex items-start sm:items-center gap-3">
                   {livePlot.isDisputed ? (
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/30">
-                      <AlertTriangle className="w-5 h-5 sm:w-7 sm:h-7" />
+                    <div className="w-9 h-9 rounded-lg bg-red-100 text-red-700 flex items-center justify-center shrink-0 border border-red-200">
+                      <AlertTriangle className="w-4 h-4" />
                     </div>
                   ) : (
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
-                      <CheckCircle className="w-5 h-5 sm:w-7 sm:h-7" />
+                    <div className="w-9 h-9 rounded-lg bg-emerald-100 text-[#065F46] flex items-center justify-center shrink-0 border border-emerald-200">
+                      <CheckCircle2 className="w-4 h-4" />
                     </div>
                   )}
                   <div>
-                    <h3 className="font-extrabold text-sm sm:text-base md:text-lg tracking-tight leading-snug">
+                    <h3
+                      className={`font-bold text-sm sm:text-base tracking-tight ${
+                        livePlot.isDisputed ? 'text-red-900' : 'text-[#065F46]'
+                      }`}
+                    >
                       {livePlot.isDisputed
-                        ? 'JUDICIAL STAY ORDER / ENCUMBRANCE ACTIVE'
-                        : 'AUTHENTICATED SOVEREIGN LAND TITLE'}
+                        ? 'Judicial Stay Order / Litigation Encumbrance Active'
+                        : 'Authenticated Sovereign Land Title'}
                     </h3>
-                    <p className="text-xs opacity-85 mt-0.5">
+                    <p
+                      className={`text-xs mt-0.5 ${
+                        livePlot.isDisputed ? 'text-red-700' : 'text-emerald-800/80'
+                      }`}
+                    >
                       {livePlot.isDisputed
-                        ? 'Restrained by court order. Sale or third-party mutation is blocked.'
-                        : 'Cryptographic Sanad verified against Karachi Land Authority ledger.'}
+                        ? 'Sale, transfer, and escrow settlement are legally blocked under court order.'
+                        : 'Cryptographic Form-VII Sanad verified on the Sindh Board of Revenue ledger.'}
                     </p>
                   </div>
                 </div>
 
-                <span className="text-[11px] sm:text-xs font-mono font-bold px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full border border-white/10 bg-slate-950/70 text-slate-300 self-start sm:self-center whitespace-nowrap">
-                  Cadastre ID #{livePlot.id}
+                <span className="text-[11px] font-mono font-medium px-2.5 py-1 rounded-md border border-[#E4E4E0] bg-white text-zinc-700 self-start sm:self-center whitespace-nowrap tabular-nums">
+                  Parcel #{String(livePlot.id).padStart(4, '0')}
                 </span>
               </div>
 
               {livePlot.isDisputed && (
-                <div className="m-4 sm:m-6 mb-0 p-3.5 sm:p-4 rounded-2xl bg-rose-950/30 border border-rose-500/40 text-rose-200 text-sm">
-                  <div className="font-bold flex items-center gap-2 mb-1 text-xs uppercase tracking-wider text-rose-300">
-                    <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
-                    <span>Judicial Restraining Notice:</span>
+                <div className="m-4 sm:m-6 mb-0 p-3.5 rounded-lg bg-red-50 border border-red-200 text-xs">
+                  <div className="font-semibold flex items-center gap-1.5 mb-1 text-red-900">
+                    <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
+                    <span>Judicial Restraining Notice</span>
                   </div>
-                  <p className="text-xs text-rose-200 font-mono break-words">
+                  <p className="text-red-800 font-mono break-words">
                     {livePlot.disputeReason || 'Litigation pending before competent court of law.'}
                   </p>
                 </div>
               )}
 
-              {/* Details Grid */}
-              <div className="p-4 sm:p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-                <div className="bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/[0.06]">
-                  <p className="text-xs text-slate-400 font-medium mb-1">Official Allotment ID</p>
+              {/* Tabular Details Grid */}
+              <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                <div className="bg-[#FBFBFA] p-3.5 rounded-lg border border-[#E4E4E0]">
+                  <p className="text-[11px] text-zinc-500 font-medium mb-1">Official Allotment ID</p>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm sm:text-base font-bold text-emerald-400 font-mono break-all">
+                    <p className="text-sm font-semibold text-[#111315] font-mono break-all">
                       {livePlot.kdaPlotNumber}
                     </p>
                     <button
                       onClick={() => handleCopy(livePlot.kdaPlotNumber)}
-                      className="text-slate-400 hover:text-white cursor-pointer p-1 shrink-0"
+                      className="text-zinc-400 hover:text-[#111315] cursor-pointer p-1 shrink-0"
                       title="Copy Allotment ID"
                     >
                       {copiedId ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <Check className="w-3.5 h-3.5 text-[#059669]" />
                       ) : (
                         <Copy className="w-3.5 h-3.5" />
                       )}
                     </button>
                   </div>
-                  <span className="text-[11px] text-slate-500">Anti-Duplicate File Guarded</span>
+                  <span className="text-[11px] text-zinc-500">Duplicate-File Guarded</span>
                 </div>
 
-                <div className="bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/[0.06]">
-                  <p className="text-xs text-slate-400 font-medium mb-1">Scheme & Sector</p>
-                  <p className="text-sm sm:text-base font-bold text-white">{livePlot.schemeName}</p>
-                  <span className="text-[11px] text-slate-400">
+                <div className="bg-[#FBFBFA] p-3.5 rounded-lg border border-[#E4E4E0]">
+                  <p className="text-[11px] text-zinc-500 font-medium mb-1">Scheme & Sector</p>
+                  <p className="text-sm font-semibold text-[#111315]">{livePlot.schemeName}</p>
+                  <span className="text-[11px] text-zinc-500">
                     {livePlot.sector}, Plot #{livePlot.plotNumber}
                   </span>
                 </div>
 
-                <div className="bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/[0.06]">
-                  <p className="text-xs text-slate-400 font-medium mb-1">Measured Area & Zoning</p>
-                  <p className="text-sm sm:text-base font-bold text-white">{livePlot.squareYards} Sq. Yards</p>
-                  <span className="text-[11px] text-teal-400 font-semibold uppercase">
+                <div className="bg-[#FBFBFA] p-3.5 rounded-lg border border-[#E4E4E0]">
+                  <p className="text-[11px] text-zinc-500 font-medium mb-1">Surveyed Area & Land Use</p>
+                  <p className="text-sm font-semibold text-[#111315] tabular-nums">
+                    {livePlot.squareYards} Sq. Yards
+                  </p>
+                  <span className="text-[11px] text-[#0B5D46] font-semibold uppercase">
                     {livePlot.plotCategory}
                   </span>
                 </div>
 
-                <div className="bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/[0.06] md:col-span-2">
-                  <p className="text-xs text-slate-400 font-medium mb-1">Registered Legal Owner</p>
-                  <p className="text-xs sm:text-sm font-mono text-slate-200 break-all">
+                <div className="bg-[#FBFBFA] p-3.5 rounded-lg border border-[#E4E4E0] md:col-span-2">
+                  <p className="text-[11px] text-zinc-500 font-medium mb-1">Registered Title Holder</p>
+                  <p className="text-xs sm:text-[13px] font-mono text-[#111315] break-all">
                     {livePlot.currentOwner}
                   </p>
-                  <span className="text-[11px] text-emerald-400 font-medium">
+                  <span className="text-[11px] text-[#0B5D46] font-medium">
                     {resolveWalletLabel(livePlot.currentOwner) || 'Verified On-Chain Title Holder'}
                   </span>
                 </div>
 
-                <div className="bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/[0.06]">
-                  <p className="text-xs text-slate-400 font-medium mb-1">Market & Escrow Status</p>
+                <div className="bg-[#FBFBFA] p-3.5 rounded-lg border border-[#E4E4E0] tabular-nums">
+                  <p className="text-[11px] text-zinc-500 font-medium mb-1">Market & Escrow Status</p>
                   {Number(livePlot.status) === 1 && !livePlot.isDisputed ? (
                     <>
-                      <p className="text-sm font-bold text-amber-400">
-                        For Sale: {formatEth(livePlot.price)}
+                      <p className="text-sm font-semibold text-amber-700">
+                        For Sale • {formatEth(livePlot.price)}
                       </p>
-                      <span className="text-[11px] text-slate-300 font-semibold">
+                      <span className="text-[11px] text-zinc-600 font-medium">
                         ≈ {formatPkrFromWei(livePlot.price)}
                       </span>
                     </>
                   ) : Number(livePlot.status) === 2 ? (
                     <>
-                      <p className="text-sm font-bold text-cyan-400">Escrow Vault Locked</p>
-                      <span className="text-[11px] text-slate-400">Awaiting Sub-Registrar Sign-off</span>
+                      <p className="text-sm font-semibold text-blue-700">Escrow Vault Locked</p>
+                      <span className="text-[11px] text-zinc-500">Awaiting KDA Stamping</span>
                     </>
                   ) : livePlot.isDisputed ? (
                     <>
-                      <p className="text-sm font-bold text-rose-400">Frozen (Court Injunction)</p>
-                      <span className="text-[11px] text-slate-500">Market Alienation Blocked</span>
+                      <p className="text-sm font-semibold text-red-700">Frozen (Court Order)</p>
+                      <span className="text-[11px] text-zinc-500">Alienation Blocked</span>
                     </>
                   ) : (
                     <>
-                      <p className="text-sm font-bold text-emerald-400">Private Holding</p>
-                      <span className="text-[11px] text-slate-500">Not Currently Listed</span>
+                      <p className="text-sm font-semibold text-[#065F46]">Private Holding</p>
+                      <span className="text-[11px] text-zinc-500">Not Listed for Sale</span>
                     </>
                   )}
                 </div>
               </div>
 
               {/* Footer Actions */}
-              <div className="px-4 sm:px-6 pb-5 sm:pb-6 pt-3 border-t border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs text-slate-400 min-w-0">
-                  <FileText className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div className="px-4 sm:px-6 py-4 bg-[#FBFBFA] border-t border-[#E4E4E0] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs text-zinc-500 min-w-0">
+                  <FileText className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                   <span className="truncate">
-                    IPFS CID:{' '}
-                    <span className="font-mono text-slate-300">
-                      {livePlot.ipfsDeedHash.slice(0, 20)}...
+                    IPFS Deed CID:{' '}
+                    <span className="font-mono text-zinc-700">
+                      {livePlot.ipfsDeedHash.slice(0, 22)}...
                     </span>
                   </span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   {Number(livePlot.status) === 1 && !livePlot.isDisputed && !isOwner && onDepositEscrow && (
                     <button
                       onClick={() => onDepositEscrow(livePlot)}
-                      className="bg-gradient-to-r from-cyan-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 font-bold text-xs px-5 py-3 sm:py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20"
+                      className="bg-[#0B5D46] hover:bg-[#094B38] text-white font-semibold text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
-                      <span>Purchase via Smart Escrow</span>
+                      <span>Purchase via Atomic Escrow</span>
                       <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                     </button>
                   )}
 
                   <button
                     onClick={() => onSelectPlot(livePlot)}
-                    className="bg-slate-800 hover:bg-slate-700 text-white border border-white/10 text-xs font-semibold px-5 py-3 sm:py-2.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer hover:border-emerald-500/40"
+                    className="bg-white hover:bg-[#F4F4F1] text-[#111315] border border-[#D4D4CE] text-xs font-semibold px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
                   >
-                    <History className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>Inspect Official Digital Sanad</span>
+                    <History className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+                    <span>Open Official Digital Sanad</span>
                   </button>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="bg-rose-950/20 backdrop-blur-2xl border border-rose-800/60 p-6 sm:p-10 rounded-2xl sm:rounded-3xl text-center shadow-2xl">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30">
-                <ShieldAlert className="w-7 h-7 sm:w-8 sm:h-8" />
+            <div className="bg-white border border-red-200 p-6 sm:p-8 rounded-xl text-center shadow-[0_1px_3px_rgba(16,24,40,0.04)]">
+              <div className="w-12 h-12 mx-auto mb-3.5 rounded-xl bg-red-50 text-red-600 flex items-center justify-center border border-red-200">
+                <ShieldAlert className="w-6 h-6" />
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-rose-200 mb-2">
-                UNREGISTERED OR FORGED PLOT FILE DETECTED
+              <h3 className="text-base sm:text-lg font-bold text-red-900 mb-1.5">
+                Unregistered or Forged Plot File Detected
               </h3>
-              <p className="text-xs sm:text-sm text-rose-300/85 max-w-xl mx-auto mb-5 break-words">
-                Zero cryptographic records match{' '}
-                <span className="font-mono font-bold text-white">"{searchQuery}"</span> in the Sindh Board of Revenue & KDA Blockchain Registry.
+              <p className="text-xs sm:text-[13px] text-zinc-600 max-w-xl mx-auto mb-5 break-words">
+                No verified cadastral record matches{' '}
+                <span className="font-mono font-semibold text-[#111315]">"{searchQuery}"</span> in the Sindh Board of Revenue & KDA Blockchain Registry.
               </p>
-              <div className="text-xs bg-slate-950/90 border border-rose-900/70 p-4 rounded-2xl max-w-lg mx-auto text-slate-300 text-left space-y-1.5">
-                <p className="font-bold text-rose-400 uppercase tracking-wider text-[11px]">
-                  Anti-Fraud Advisory:
+              <div className="text-xs bg-red-50/60 border border-red-200/80 p-4 rounded-lg max-w-lg mx-auto text-zinc-700 text-left space-y-1.5">
+                <p className="font-semibold text-red-900 text-xs">
+                  Buyer Protection Advisory
                 </p>
-                <p>• Unregistered paper files ("kachi files") are the primary vehicle for duplicate allotment fraud.</p>
-                <p>• Never transfer advance token money outside ZameenChain Atomic Escrow.</p>
-                <p>• Direct the seller to have the parcel surveyed and minted at the KDA Sub-Registrar Terminal.</p>
+                <p>• Unregistered paper files ("kachi files") are the primary source of duplicate allotment fraud in Karachi.</p>
+                <p>• Do not pay cash or advance token money outside ZameenChain Atomic Escrow.</p>
+                <p>• Ask the seller to have the parcel surveyed and minted at the KDA Sub-Registrar Desk.</p>
               </div>
             </div>
           )}

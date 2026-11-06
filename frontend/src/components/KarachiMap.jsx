@@ -15,7 +15,6 @@ export default function KarachiMap({ plots, onSelectPlot }) {
   const [mapFilter, setMapFilter] = useState('ALL');
   const [hoverCoords, setHoverCoords] = useState({ lat: '24.8607', lon: '67.0011' });
 
-  // Project real Karachi Lat/Lon into safe canvas space [18%..82%] x [24%..78%] + collision offset
   const zonePins = useMemo(() => {
     if (!plots || plots.length === 0) return [];
 
@@ -45,31 +44,31 @@ export default function KarachiMap({ plots, onSelectPlot }) {
       return { plot: p, x, y };
     });
 
-    // Collision avoidance: nudge pins that fall within 8% distance of an earlier pin
-    for (let i = 0; i < rawPins.length; i++) {
-      for (let j = 0; j < i; j++) {
-        const dx = rawPins[i].x - rawPins[j].x;
-        const dy = rawPins[i].y - rawPins[j].y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 8) {
-          const angle = (i * 2.1) % (Math.PI * 2);
-          rawPins[i].x = Math.min(82, Math.max(18, rawPins[i].x + Math.cos(angle) * 8));
-          rawPins[i].y = Math.min(76, Math.max(25, rawPins[i].y + Math.sin(angle) * 8));
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 0; i < rawPins.length; i++) {
+        for (let j = 0; j < i; j++) {
+          const dx = rawPins[i].x - rawPins[j].x;
+          const dy = rawPins[i].y - rawPins[j].y;
+          if (Math.abs(dx) < 16 && Math.abs(dy) < 15) {
+            const angle = (i * 1.9 + 0.4) % (Math.PI * 2);
+            rawPins[i].x = Math.min(82, Math.max(18, rawPins[i].x + Math.cos(angle) * 10));
+            rawPins[i].y = Math.min(76, Math.max(24, rawPins[i].y + Math.sin(angle) * 10));
+          }
         }
       }
     }
 
     return rawPins.map(({ plot: p, x, y }) => {
-      let statusLabel = 'Registered Title';
+      let statusLabel = 'Clean Title';
       let priceLabel = 'Private Holding';
       if (p.isDisputed) {
-        statusLabel = 'High Court Stay Order';
+        statusLabel = 'SHC Stay Order';
         priceLabel = 'Frozen by Court';
       } else if (Number(p.status) === 1) {
         statusLabel = 'Listed For Sale';
         priceLabel = `${formatEth(p.price)} (${formatPkrFromWei(p.price)})`;
       } else if (Number(p.status) === 2) {
-        statusLabel = 'Escrow Vault Locked';
+        statusLabel = 'Escrow Locked';
         priceLabel = `Locked: ${formatEth(p.price)}`;
       }
 
@@ -112,29 +111,28 @@ export default function KarachiMap({ plots, onSelectPlot }) {
   };
 
   return (
-    <div className="space-y-5 sm:space-y-6 animate-fadeIn">
+    <div className="space-y-5 animate-fadeIn">
       {/* Header & Layer Toggles */}
-      <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden p-5 sm:p-8 border border-white/[0.08] bg-gradient-to-br from-[#0c1626]/90 via-[#070c14]/95 to-[#060b13] shadow-2xl backdrop-blur-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-white border border-[#E4E4E0] rounded-xl p-5 sm:p-6 shadow-[0_1px_3px_rgba(16,24,40,0.04)] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-500/30 whitespace-nowrap">
-              Satellite Cadastral Telemetry
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-zinc-500 mb-1">
+            <span className="text-[#0B5D46] font-semibold uppercase tracking-[0.06em]">
+              Cadastral GIS Survey
             </span>
-            <span className="text-[11px] sm:text-xs text-slate-400 font-mono whitespace-nowrap">
-              WGS-84 Geo-Grid • Karachi
-            </span>
+            <span>•</span>
+            <span className="font-mono">WGS-84 Projection</span>
           </div>
-          <h2 className="text-lg sm:text-2xl font-black text-white mt-2">
-            Karachi Tactical GIS & Parcel Radar
+          <h2 className="text-lg sm:text-xl font-bold text-[#111315] tracking-[-0.02em]">
+            Karachi Metropolitan Parcel Map
           </h2>
-          <p className="text-xs text-slate-300 mt-1">
-            True GPS-projected land titles across KDA, DHA, Clifton, and Malir corridors.
+          <p className="text-xs text-zinc-600 mt-0.5">
+            Geo-referenced land titles across KDA, DHA, Clifton, Gulshan, Surjani, and Bahria corridors.
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pb-0.5 text-xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 text-xs">
           {[
-            { key: 'ALL', label: `All (${zonePins.length})` },
+            { key: 'ALL', label: `All Parcels (${zonePins.length})` },
             { key: 'FOR_SALE', label: 'For Sale' },
             { key: 'COMMERCIAL', label: 'Commercial' },
             { key: 'DISPUTED', label: 'Stay Orders' }
@@ -142,10 +140,10 @@ export default function KarachiMap({ plots, onSelectPlot }) {
             <button
               key={tab.key}
               onClick={() => setMapFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap shrink-0 ${
                 mapFilter === tab.key
-                  ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
-                  : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/[0.08]'
+                  ? 'bg-[#111315] text-white font-semibold'
+                  : 'bg-[#F7F7F5] hover:bg-[#ECECE7] text-zinc-700 border border-[#E4E4E0]'
               }`}
             >
               {tab.label}
@@ -154,9 +152,9 @@ export default function KarachiMap({ plots, onSelectPlot }) {
         </div>
       </div>
 
-      {/* Main Radar Canvas + Inspector */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
-        {/* GIS Tactical Canvas */}
+      {/* Cartographic Map + Parcel Inspector */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Realistic Cartographic Light Cadastral Canvas */}
         <div
           onMouseMove={(e) => updatePointerCoords(e.clientX, e.clientY, e.currentTarget)}
           onTouchMove={(e) => {
@@ -164,87 +162,96 @@ export default function KarachiMap({ plots, onSelectPlot }) {
               updatePointerCoords(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget);
             }
           }}
-          className="lg:col-span-2 relative h-[380px] sm:h-[500px] bg-[#040811] border border-white/[0.08] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl p-3 sm:p-4 flex flex-col justify-between select-none touch-pan-y"
+          className="lg:col-span-2 relative h-[380px] sm:h-[490px] bg-[#F1EFE7] border border-[#DFDDD4] rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.04)] p-3 sm:p-4 flex flex-col justify-between select-none touch-pan-y"
         >
-          {/* Fine Cadastral Grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b35_1px,transparent_1px),linear-gradient(to_bottom,#1e293b35_1px,transparent_1px)] bg-[size:32px_32px] sm:bg-[size:36px_36px]" />
+          {/* Survey Gridlines */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#E2DFD5_1px,transparent_1px),linear-gradient(to_bottom,#E2DFD5_1px,transparent_1px)] bg-[size:40px_40px]" />
 
-          {/* Vector Karachi Coastline, Arterial Corridors & Radar Rings */}
+          {/* Cartographic Terrain, Parks, Highways, Rivers & Arabian Sea */}
           <svg
             viewBox="0 0 800 500"
-            className="absolute inset-0 w-full h-full pointer-events-none opacity-45"
+            className="absolute inset-0 w-full h-full pointer-events-none"
             preserveAspectRatio="none"
           >
-            <circle cx="420" cy="240" r="95" fill="none" stroke="#10b981" strokeOpacity="0.14" strokeDasharray="4 4" />
-            <circle cx="420" cy="240" r="190" fill="none" stroke="#10b981" strokeOpacity="0.12" strokeDasharray="4 4" />
-            <circle cx="420" cy="240" r="285" fill="none" stroke="#14b8a6" strokeOpacity="0.08" />
+            {/* Subtle Green Belts / Parks */}
+            <polygon points="440,120 560,95 590,175 470,195" fill="#E3ECE1" opacity="0.7" />
+            <polygon points="150,90 250,75 270,150 165,165" fill="#E3ECE1" opacity="0.6" />
 
+            {/* Malir & Lyari River Channels */}
             <path
-              d="M 420 260 Q 540 160 740 55"
+              d="M 650 0 Q 560 190 430 435"
               fill="none"
-              stroke="#38bdf8"
-              strokeOpacity="0.25"
-              strokeWidth="2"
-              strokeDasharray="6 4"
+              stroke="#C9E0F2"
+              strokeWidth="8"
+              strokeLinecap="round"
             />
             <path
-              d="M 280 380 Q 450 320 660 280"
+              d="M 290 0 Q 270 180 195 395"
               fill="none"
-              stroke="#10b981"
-              strokeOpacity="0.25"
+              stroke="#C9E0F2"
+              strokeWidth="5"
+              strokeLinecap="round"
+            />
+
+            {/* Major Arterial Highways (Double-cased Mapbox style) */}
+            {/* M-9 Super Highway */}
+            <path d="M 380 260 Q 545 155 770 35" fill="none" stroke="#D5D0C3" strokeWidth="6" />
+            <path d="M 380 260 Q 545 155 770 35" fill="none" stroke="#FFFFFF" strokeWidth="3.5" />
+
+            {/* Shahrah-e-Faisal */}
+            <path d="M 220 390 Q 430 315 720 265" fill="none" stroke="#D5D0C3" strokeWidth="6" />
+            <path d="M 220 390 Q 430 315 720 265" fill="none" stroke="#FEF9C3" strokeWidth="3.5" />
+
+            {/* Northern Bypass / Surjani Link */}
+            <path d="M 110 140 Q 280 160 460 215" fill="none" stroke="#D5D0C3" strokeWidth="4.5" />
+            <path d="M 110 140 Q 280 160 460 215" fill="none" stroke="#FFFFFF" strokeWidth="2.5" />
+
+            {/* Arabian Sea Coastline & DHA / Clifton Waterfront */}
+            <path
+              d="M 0 395 Q 165 378 305 422 T 610 462 L 800 482 L 800 500 L 0 500 Z"
+              fill="#D5E7F5"
+              stroke="#93C5FD"
               strokeWidth="2"
             />
-            <path
-              d="M 0 410 Q 180 390 320 430 T 620 465 L 800 485 L 800 500 L 0 500 Z"
-              fill="url(#seaGrad)"
-              stroke="#06b6d4"
-              strokeOpacity="0.35"
-              strokeWidth="1.5"
-            />
-            <defs>
-              <linearGradient id="seaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#0891b2" stopOpacity="0.18" />
-                <stop offset="100%" stopColor="#022c22" stopOpacity="0.45" />
-              </linearGradient>
-            </defs>
           </svg>
 
-          {/* Subtle District Labels (Desktop/Tablet only so mobile stays crisp) */}
-          <span className="hidden sm:block absolute top-16 right-10 text-[10px] font-mono uppercase tracking-widest text-slate-600 pointer-events-none">
-            M-9 Corridor / Bahria & Scheme 33
+          {/* Cartographic District Labels */}
+          <span className="hidden sm:block absolute top-16 right-10 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-500 pointer-events-none">
+            M-9 Corridor • Scheme 33 & Bahria
           </span>
-          <span className="hidden sm:block absolute top-14 left-12 text-[10px] font-mono uppercase tracking-widest text-slate-600 pointer-events-none">
-            Surjani / North Karachi
+          <span className="hidden sm:block absolute top-16 left-10 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-500 pointer-events-none">
+            Surjani & North Nazimabad
           </span>
-          <span className="hidden sm:block absolute bottom-10 left-6 text-[10px] font-mono tracking-widest text-cyan-400/60 uppercase font-bold pointer-events-none">
-            Arabian Sea • Clifton & DHA Waterfront
+          <span className="hidden sm:block absolute bottom-8 left-6 text-[10px] font-semibold tracking-[0.14em] text-sky-800/70 uppercase pointer-events-none">
+            Arabian Sea • Clifton & DHA
           </span>
 
-          {/* Top Telemetry HUD */}
-          <div className="relative z-10 flex items-center justify-between gap-1.5 text-[10px] sm:text-xs font-mono">
-            <div className="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/10 text-slate-300 shrink-0">
-              <Compass className="w-3.5 h-3.5 text-emerald-400 animate-spin shrink-0" style={{ animationDuration: '18s' }} />
+          {/* Top Map Telemetry Bar */}
+          <div className="relative z-10 flex items-center justify-between gap-2 text-[11px] font-mono">
+            <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-2.5 py-1.5 rounded-lg border border-[#D4D4CE] text-[#111315] shadow-xs shrink-0 tabular-nums">
+              <Compass className="w-3.5 h-3.5 text-[#0B5D46] shrink-0" />
               <span>
                 {hoverCoords.lat}°N, {hoverCoords.lon}°E
               </span>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 bg-slate-900/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/10 text-[10px] sm:text-[11px]">
-              <span className="flex items-center gap-1 text-emerald-300">
-                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400" />
-                <span className="hidden xs:inline sm:inline">Titled</span>
+
+            <div className="flex items-center gap-2.5 bg-white/95 backdrop-blur-sm px-2.5 py-1.5 rounded-lg border border-[#D4D4CE] text-[10px] sm:text-[11px] font-sans font-medium text-zinc-700 shadow-xs">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-[#0B5D46]" />
+                <span className="hidden sm:inline">Titled</span>
               </span>
-              <span className="flex items-center gap-1 text-amber-300">
-                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-400" />
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
                 <span>Sale</span>
               </span>
-              <span className="flex items-center gap-1 text-rose-300">
-                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-rose-500 animate-pulse" />
-                <span>Court</span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-red-600" />
+                <span>Stay</span>
               </span>
             </div>
           </div>
 
-          {/* Interactive Parcel Pins */}
+          {/* Interactive Parcel Markers */}
           <div className="absolute inset-0">
             {visiblePins.map((pin) => {
               const isSelected = activePin?.id === pin.id;
@@ -258,42 +265,32 @@ export default function KarachiMap({ plots, onSelectPlot }) {
                     isSelected ? 'z-30' : 'z-20'
                   }`}
                 >
-                  <span
-                    className={`absolute inset-0 rounded-full opacity-55 animate-ping ${
-                      pin.isDisputed
-                        ? 'bg-rose-500'
-                        : pin.isListed
-                        ? 'bg-amber-400'
-                        : 'bg-emerald-400'
-                    }`}
-                  />
-
                   <div
-                    className={`relative p-2 sm:p-2.5 rounded-2xl border transition-all duration-200 transform group-hover:scale-125 shadow-xl ${
+                    className={`relative w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-white flex items-center justify-center transition-transform duration-200 shadow-[0_3px_10px_rgba(0,0,0,0.22)] group-hover:scale-110 ${
                       isSelected
-                        ? 'bg-emerald-400 text-slate-950 border-white scale-115 sm:scale-125 ring-4 ring-emerald-500/35'
+                        ? 'scale-115 ring-4 ring-[#111315]/15 bg-[#111315] text-white'
                         : pin.isDisputed
-                        ? 'bg-rose-950 text-rose-300 border-rose-500'
+                        ? 'bg-red-600 text-white'
                         : pin.isListed
-                        ? 'bg-amber-950 text-amber-300 border-amber-400/80'
-                        : 'bg-slate-900 text-emerald-300 border-emerald-500/60'
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-[#0B5D46] text-white'
                     }`}
                   >
                     {pin.isDisputed ? (
-                      <AlertTriangle className="w-4 h-4" />
+                      <AlertTriangle className="w-3.5 h-3.5" />
                     ) : pin.isListed ? (
-                      <Tag className="w-4 h-4" />
+                      <Tag className="w-3.5 h-3.5" />
                     ) : (
-                      <MapPin className="w-4 h-4" />
+                      <MapPin className="w-3.5 h-3.5" />
                     )}
                   </div>
 
-                  {/* On mobile, display label only on the selected beacon to avoid clutter */}
+                  {/* Callout Label */}
                   <div
-                    className={`absolute left-1/2 -translate-x-1/2 top-full mt-1 pointer-events-none whitespace-nowrap px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-mono font-bold shadow-lg transition-opacity ${
+                    className={`absolute left-1/2 -translate-x-1/2 top-full mt-1 pointer-events-none whitespace-nowrap px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold shadow-sm border transition-opacity ${
                       isSelected
-                        ? 'block bg-emerald-400 text-slate-950 opacity-100'
-                        : 'hidden sm:block bg-slate-950/90 text-slate-200 border border-slate-700 opacity-80 group-hover:opacity-100'
+                        ? 'block bg-[#111315] text-white border-[#111315]'
+                        : 'hidden sm:block bg-white/95 text-[#111315] border-[#D4D4CE] opacity-90 group-hover:opacity-100'
                     }`}
                   >
                     {pin.code}
@@ -303,31 +300,31 @@ export default function KarachiMap({ plots, onSelectPlot }) {
             })}
           </div>
 
-          {/* Bottom Bar */}
-          <div className="relative z-10 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400 bg-slate-950/60 sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-lg">
-            <span className="flex items-center gap-1.5">
-              <Crosshair className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="truncate">1:25,000 • Karachi Grid</span>
+          {/* Bottom Scale Bar */}
+          <div className="relative z-10 flex items-center justify-between text-[10px] sm:text-[11px] text-zinc-700 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-md border border-[#DFDDD4]">
+            <span className="flex items-center gap-1.5 font-medium">
+              <Crosshair className="w-3 h-3 text-[#0B5D46] shrink-0" />
+              <span>Scale 1:25,000 • KDA Survey Grid</span>
             </span>
-            <span className="shrink-0">Tap beacon to inspect</span>
+            <span className="text-zinc-500">Select marker to inspect</span>
           </div>
         </div>
 
-        {/* Right Side Parcel Inspector + Quick List */}
-        <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-2xl space-y-5">
+        {/* Right Side Parcel Inspector */}
+        <div className="bg-white border border-[#E4E4E0] rounded-xl p-5 flex flex-col justify-between shadow-[0_1px_3px_rgba(16,24,40,0.04)] space-y-5">
           {activePin ? (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] font-mono font-bold text-emerald-300 bg-emerald-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                <span className="text-[11px] font-mono font-semibold text-[#111315] bg-[#F4F4F1] px-2 py-0.5 rounded border border-[#E4E4E0]">
                   {activePin.code}
                 </span>
                 <span
-                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap ${
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap ${
                     activePin.isDisputed
-                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                      ? 'bg-red-50 text-red-800 border-red-200'
                       : activePin.isListed
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                      : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                      : 'bg-emerald-50 text-[#065F46] border-emerald-200'
                   }`}
                 >
                   {activePin.statusLabel}
@@ -335,33 +332,33 @@ export default function KarachiMap({ plots, onSelectPlot }) {
               </div>
 
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-white leading-snug">{activePin.title}</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h3 className="text-base font-bold text-[#111315] leading-snug">{activePin.title}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
                   {activePin.subtitle} •{' '}
-                  <span className="text-emerald-400 font-semibold uppercase">
+                  <span className="text-[#0B5D46] font-semibold uppercase">
                     {activePin.category}
                   </span>
                 </p>
               </div>
 
-              <div className="bg-slate-950/70 p-3.5 sm:p-4 rounded-2xl border border-white/[0.06] space-y-2 text-xs">
+              <div className="bg-[#FBFBFA] p-3.5 rounded-lg border border-[#E4E4E0] space-y-2 text-xs tabular-nums">
                 <div className="flex justify-between gap-2">
-                  <span className="text-slate-400">Surveyed Area:</span>
-                  <span className="font-bold text-white">{activePin.size}</span>
+                  <span className="text-zinc-500">Surveyed Area</span>
+                  <span className="font-semibold text-[#111315]">{activePin.size}</span>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span className="text-slate-400">Valuation:</span>
-                  <span className="font-bold text-amber-400 text-right">{activePin.priceLabel}</span>
+                  <span className="text-zinc-500">Valuation</span>
+                  <span className="font-semibold text-[#111315] text-right">{activePin.priceLabel}</span>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span className="text-slate-400">GPS Coordinates:</span>
-                  <span className="font-mono text-slate-300">
+                  <span className="text-zinc-500">Coordinates</span>
+                  <span className="font-mono text-zinc-700">
                     {activePin.rawPlot.latitude}°N, {activePin.rawPlot.longitude}°E
                   </span>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span className="text-slate-400">Title Holder:</span>
-                  <span className="font-mono text-emerald-300">
+                  <span className="text-zinc-500">Owner Wallet</span>
+                  <span className="font-mono text-[#0B5D46] font-medium">
                     {shortenAddress(activePin.rawPlot.currentOwner, 6, 4)}
                   </span>
                 </div>
@@ -369,37 +366,37 @@ export default function KarachiMap({ plots, onSelectPlot }) {
 
               <button
                 onClick={() => onSelectPlot(activePin.rawPlot)}
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs py-3 rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-[#111315] hover:bg-[#27272A] text-white font-semibold text-xs py-2.5 rounded-lg transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
               >
-                <Building2 className="w-4 h-4" />
+                <Building2 className="w-3.5 h-3.5" />
                 <span>Open Official Digital Sanad</span>
               </button>
             </div>
           ) : (
-            <div className="my-auto text-center p-6 text-slate-400">
-              <Navigation className="w-10 h-10 text-emerald-400/30 mx-auto mb-2" />
-              <p className="text-sm font-bold text-white">No Parcels in Selected Layer</p>
+            <div className="my-auto text-center p-6 text-zinc-500">
+              <Navigation className="w-8 h-8 text-zinc-300 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-[#111315]">No Parcels in Layer</p>
             </div>
           )}
 
           {/* Quick Parcel Index */}
-          <div className="pt-4 border-t border-white/[0.08]">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-              Geo-Indexed Parcels ({visiblePins.length})
+          <div className="pt-4 border-t border-[#E4E4E0]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-zinc-400 mb-2">
+              Indexed Parcels ({visiblePins.length})
             </p>
-            <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+            <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
               {visiblePins.map((pin) => (
                 <button
                   key={pin.id}
                   onClick={() => setSelectedPlotId(pin.id)}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer ${
+                  className={`w-full text-left px-2.5 py-2 rounded-lg text-xs flex items-center justify-between transition cursor-pointer ${
                     activePin?.id === pin.id
-                      ? 'bg-emerald-500/15 border border-emerald-500/40 text-white'
-                      : 'bg-slate-950/50 hover:bg-slate-800/70 text-slate-300 border border-transparent'
+                      ? 'bg-[#F4F4F1] border border-[#D4D4CE] text-[#111315] font-semibold'
+                      : 'hover:bg-zinc-50 text-zinc-600 border border-transparent'
                   }`}
                 >
                   <span className="font-mono text-[11px] truncate">{pin.code}</span>
-                  <span className="text-[10px] text-slate-400 shrink-0 ml-2">{pin.size}</span>
+                  <span className="text-[10px] text-zinc-400 shrink-0 ml-2 tabular-nums">{pin.size}</span>
                 </button>
               ))}
             </div>
