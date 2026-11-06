@@ -28,7 +28,7 @@ export const DEFAULT_USERS = [
     status: 'ACTIVE',
     badgeNumber: 'KDA-SR-001',
     department: 'KDA Civic Centre - Directorate of Land Management',
-    walletAddress: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+    walletAddress: '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc'
   },
   {
     id: 'usr_reg_pending',
@@ -114,7 +114,20 @@ export const QUICK_DEMO_ACCOUNTS = [
 function sanitizeUser(u) {
   if (!u) return null;
   const { password: _password, ...safeUser } = u;
-  return safeUser;
+  return withCanonicalSeedWallet(safeUser);
+}
+
+// Official seed accounts always resolve to their canonical wallet so that the
+// KDA Sub-Registrar (signature 1) and Board of Revenue (signature 2) never share a key,
+// even if an older database row or cached session still holds a legacy address.
+const SEED_WALLET_BY_EMAIL = Object.fromEntries(
+  DEFAULT_USERS.map((u) => [u.email.toLowerCase(), u.walletAddress])
+);
+
+function withCanonicalSeedWallet(user) {
+  if (!user?.email) return user;
+  const canonical = SEED_WALLET_BY_EMAIL[user.email.toLowerCase()];
+  return canonical ? { ...user, walletAddress: canonical } : user;
 }
 
 export function saveGeneratedWalletKey(address, privateKey) {

@@ -276,6 +276,20 @@ export default function PlotModal({ plot, onClose, getAuditTrail }) {
                 </div>
               </div>
             </div>
+
+            {Number(plot.status) === 2 && (
+              <div className="mt-3.5 p-3 rounded-lg bg-blue-50/70 border border-blue-200 text-xs text-blue-900 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <CheckCircle2 className="w-4 h-4 text-blue-700 shrink-0" />
+                  <span className="truncate">
+                    <strong>Dual-Signature Escrow Active:</strong> Title mutation requires 2-of-2 signatures (KDA Endorsement + Board Countersign).
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-white border border-blue-200 shrink-0">
+                  {plot.transferApproval?.endorsedBy ? '1/2 Endorsed' : '0/2 Endorsed'}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Immutable Ownership Chain */}

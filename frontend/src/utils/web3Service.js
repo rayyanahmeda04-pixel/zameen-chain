@@ -10,8 +10,8 @@ export const CONTRACT_ADDRESS = config.address;
 export const CONTRACT_ABI = config.abi;
 export const HARDHAT_RPC_URL = import.meta.env.VITE_RPC_URL || 'http://127.0.0.1:8545';
 
-const CLOUD_LEDGER_STORAGE_KEY = 'zameen_chain_cloud_ledger_v3';
-const LOCAL_TX_LOG_KEY = 'zameen_chain_tx_activity_v3';
+const CLOUD_LEDGER_STORAGE_KEY = 'zameen_chain_cloud_ledger_v4';
+const LOCAL_TX_LOG_KEY = 'zameen_chain_tx_activity_v4';
 
 // Exact Hardhat deterministic test accounts mapped by lowercase address
 export const HARDHAT_ACCOUNT_KEYS = {
@@ -26,15 +26,23 @@ export const HARDHAT_ACCOUNT_KEYS = {
   '0x15d34aaf54267db7d7c367839aaf71a00a2c6a65':
     '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a', // Account #4: Khurram Shahzad
   '0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc':
-    '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba'  // Account #5: Sub-Registrar 2
+    '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba'  // Account #5: Engr. Tariq Mansoor (KDA Sub-Registrar)
 };
 
 export const SIMULATED_ROLES = {
+  // Chief Admin / Sindh Board of Revenue — dual-signature countersigner (Signature 2 of 2)
   REGISTRAR: {
-    name: 'Engr. Tariq Mansoor (KDA Registrar)',
-    role: 'REGISTRAR',
+    name: 'Sindh Board of Revenue (Chief Admin)',
+    role: 'ADMIN',
     address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
     privateKey: HARDHAT_ACCOUNT_KEYS['0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266']
+  },
+  // KDA Sub-Registrar — dual-signature endorser (Signature 1 of 2)
+  KDA_SUB_REGISTRAR: {
+    name: 'Engr. Tariq Mansoor (KDA Registrar)',
+    role: 'REGISTRAR',
+    address: '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc',
+    privateKey: HARDHAT_ACCOUNT_KEYS['0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc']
   },
   OWNER1: {
     name: 'Aamir Khan',
@@ -66,6 +74,7 @@ function generateTxHash(seed) {
 function createInitialCloudState() {
   const nowSec = Math.floor(Date.now() / 1000);
   const genesisRegistrar = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+  const kdaSubRegistrar = '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc';
   const ownerAamir = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8';
   const ownerBilal = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC';
 
@@ -254,7 +263,7 @@ function createInitialCloudState() {
 
   const officers = [
     {
-      address: genesisRegistrar,
+      address: kdaSubRegistrar,
       name: 'Engr. Tariq Mansoor (Chief Sub-Registrar)',
       badgeNumber: 'KDA-SR-001',
       districtBranch: 'KDA Civic Centre Main Secretariat',
@@ -431,8 +440,10 @@ async function resolveLiveSigner(currentUser, isMetaMaskConnected) {
   let privKey = HARDHAT_ACCOUNT_KEYS[lowerAddr] || getStoredWalletKey(lowerAddr);
 
   if (!privKey) {
-    if (currentUser.role === 'ADMIN' || currentUser.role === 'REGISTRAR') {
+    if (currentUser.role === 'ADMIN') {
       privKey = SIMULATED_ROLES.REGISTRAR.privateKey;
+    } else if (currentUser.role === 'REGISTRAR') {
+      privKey = SIMULATED_ROLES.KDA_SUB_REGISTRAR.privateKey;
     } else {
       // Deterministically derive a local dev key for custom Neon DB user wallets if registered on another machine
       // Wait: an Ethereum address cannot have its private key derived, so if unknown, create & store a session signer
@@ -477,6 +488,7 @@ function hydrateCloudPlot(p) {
     disputeReason: p.disputeReason || '',
     escrowBuyer: p.escrowBuyer || null,
     escrowAmount: BigInt(p.escrowAmountWei || '0'),
+    transferApproval: p.transferApproval || null,
     registrationTimestamp: Number(p.registrationTimestamp)
   };
 }
@@ -512,9 +524,25 @@ export async function fetchLedgerSnapshot() {
         chainFrozen = getEmergencyFreezeState();
       }
 
+      let rawApprovals = [];
+      try {
+        rawApprovals = await contract.getAllTransferApprovals();
+      } catch {
+        rawApprovals = [];
+      }
+
       const formattedPlots = rawPlots.map((p, index) => {
         const deal = rawDeals[index];
         const isEscrowActive = deal && deal.isActive;
+        const approval = rawApprovals[index];
+        const transferApproval =
+          isEscrowActive && approval && approval.isEndorsed
+            ? {
+                endorsedBy: approval.endorsedBy,
+                endorsedAt: Number(approval.endorsedAt),
+                newDeedIpfsHash: approval.newDeedIpfsHash
+              }
+            : null;
         return {
           id: Number(p.id),
           kdaPlotNumber: p.kdaPlotNumber,
@@ -533,6 +561,7 @@ export async function fetchLedgerSnapshot() {
           disputeReason: p.disputeReason,
           escrowBuyer: isEscrowActive ? deal.buyer : null,
           escrowAmount: isEscrowActive ? deal.amount : 0n,
+          transferApproval,
           registrationTimestamp: Number(p.registrationTimestamp)
         };
       });
@@ -849,11 +878,17 @@ export async function ledgerDepositEscrow(currentUser, isMetaMask, plot) {
 }
 
 /**
- * 5. KDA Registrar: Certify Deed Transfer & Release Escrow Funds
+ * 5a. DUAL-SIGNATURE — Signature 1 of 2 (Maker): KDA Sub-Registrar endorses the deed.
+ * No ownership change and no funds released at this stage.
  */
-export async function ledgerApproveTransfer(currentUser, isMetaMask, plotId) {
+export async function ledgerEndorseTransfer(currentUser, isMetaMask, plotId) {
   if (getEmergencyFreezeState()) {
     throw new Error('City-Wide Emergency Freeze is active. Title transfers are suspended.');
+  }
+  if (!currentUser || currentUser.role !== 'REGISTRAR') {
+    throw new Error(
+      'Separation of duties: only an accredited KDA Sub-Registrar can provide Signature 1 (endorsement).'
+    );
   }
 
   const newDeedHash = `QmKdaCertifiedSanad${plotId}v${Date.now().toString().slice(-6)}`;
@@ -862,12 +897,12 @@ export async function ledgerApproveTransfer(currentUser, isMetaMask, plotId) {
   if (probe.live) {
     const signer = await resolveLiveSigner(currentUser, isMetaMask);
     const contract = await getContract(signer);
-    const tx = await contract.approveAndCompleteTransfer(plotId, newDeedHash);
+    const tx = await contract.endorseTransfer(plotId, newDeedHash);
     const receipt = await tx.wait();
     appendLocalTxLog({
       hash: receipt.hash,
-      type: 'TITLE_TRANSFERRED',
-      summary: `KDA Sub-Registrar certified transfer & released escrow for Plot #${plotId}`,
+      type: 'TRANSFER_ENDORSED',
+      summary: `KDA Sub-Registrar endorsed transfer for Plot #${plotId} (signature 1 of 2)`,
       actor: signer.address,
       plotCode: `Plot #${plotId}`,
       blockNumber: receipt.blockNumber,
@@ -885,20 +920,113 @@ export async function ledgerApproveTransfer(currentUser, isMetaMask, plotId) {
   if (target.isDisputed) {
     throw new Error('Cannot transfer property under active court stay order.');
   }
+  if (target.transferApproval?.endorsedBy) {
+    throw new Error('This transfer has already been endorsed and is awaiting Board of Revenue countersignature.');
+  }
+  const signerAddr = (currentUser.walletAddress || '').toLowerCase();
+  if (
+    signerAddr === target.currentOwner.toLowerCase() ||
+    signerAddr === target.escrowBuyer.toLowerCase()
+  ) {
+    throw new Error('Conflict of interest: a party to the sale cannot sign the transfer.');
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const txHash = generateTxHash(`ENDORSE-${plotId}-${signerAddr}`);
+  cloud.blockNumber += 1;
+
+  target.transferApproval = {
+    endorsedBy: currentUser.walletAddress,
+    endorsedByName: currentUser.name || 'KDA Sub-Registrar',
+    endorsedAt: nowSec,
+    newDeedIpfsHash: newDeedHash
+  };
+
+  cloud.transactions.unshift({
+    hash: txHash,
+    type: 'TRANSFER_ENDORSED',
+    summary: `${target.kdaPlotNumber} endorsed by KDA Sub-Registrar — awaiting Board of Revenue countersign (1/2)`,
+    actor: currentUser.walletAddress,
+    plotCode: target.kdaPlotNumber,
+    blockNumber: cloud.blockNumber,
+    timestamp: nowSec
+  });
+
+  saveCloudLedger(cloud);
+  return { txHash };
+}
+
+/**
+ * 5b. DUAL-SIGNATURE — Signature 2 of 2 (Checker): Sindh Board of Revenue countersigns.
+ * Only now is title transferred and escrow released atomically to the seller.
+ */
+export async function ledgerCountersignTransfer(currentUser, isMetaMask, plotId) {
+  if (getEmergencyFreezeState()) {
+    throw new Error('City-Wide Emergency Freeze is active. Title transfers are suspended.');
+  }
+  if (!currentUser || currentUser.role !== 'ADMIN') {
+    throw new Error(
+      'Only a Sindh Board of Revenue authority can provide Signature 2 (countersign & release).'
+    );
+  }
+
+  const probe = await probeLiveNode();
+
+  if (probe.live) {
+    const signer = await resolveLiveSigner(currentUser, isMetaMask);
+    const contract = await getContract(signer);
+    const tx = await contract.countersignTransfer(plotId);
+    const receipt = await tx.wait();
+    appendLocalTxLog({
+      hash: receipt.hash,
+      type: 'TITLE_TRANSFERRED',
+      summary: `Board of Revenue countersigned Plot #${plotId} — title transferred & escrow released (2/2)`,
+      actor: signer.address,
+      plotCode: `Plot #${plotId}`,
+      blockNumber: receipt.blockNumber,
+      timestamp: Math.floor(Date.now() / 1000)
+    });
+    return { txHash: receipt.hash };
+  }
+
+  const cloud = getCloudLedger();
+  const target = cloud.plots.find((p) => Number(p.id) === Number(plotId));
+  if (!target) throw new Error('Plot does not exist.');
+  if (Number(target.status) !== 2 || !target.escrowBuyer) {
+    throw new Error('No active escrow deal awaiting certification for this plot.');
+  }
+  if (target.isDisputed) {
+    throw new Error('Cannot transfer property under active court stay order.');
+  }
+  const approval = target.transferApproval;
+  if (!approval?.endorsedBy) {
+    throw new Error('Awaiting KDA Sub-Registrar endorsement (signature 1 of 2) before countersigning.');
+  }
+  const signerAddr = (currentUser.walletAddress || '').toLowerCase();
+  if (signerAddr === approval.endorsedBy.toLowerCase()) {
+    throw new Error('Dual control violation: the endorsing officer cannot also countersign.');
+  }
+  if (
+    signerAddr === target.currentOwner.toLowerCase() ||
+    signerAddr === target.escrowBuyer.toLowerCase()
+  ) {
+    throw new Error('Conflict of interest: a party to the sale cannot sign the transfer.');
+  }
 
   const nowSec = Math.floor(Date.now() / 1000);
   const previousOwner = target.currentOwner;
   const newOwner = target.escrowBuyer;
   const salePriceWei = target.escrowAmountWei || target.priceWei;
-  const txHash = generateTxHash(`TRANSFER-${plotId}-${newOwner}`);
+  const txHash = generateTxHash(`COUNTERSIGN-${plotId}-${newOwner}`);
   cloud.blockNumber += 1;
 
   target.currentOwner = newOwner;
   target.priceWei = '0';
   target.status = 0; // REGISTERED
-  target.ipfsDeedHash = newDeedHash;
+  target.ipfsDeedHash = approval.newDeedIpfsHash || target.ipfsDeedHash;
   target.escrowBuyer = null;
   target.escrowAmountWei = '0';
+  target.transferApproval = null;
 
   if (!Array.isArray(target.history)) target.history = [];
   target.history.push({
@@ -906,15 +1034,15 @@ export async function ledgerApproveTransfer(currentUser, isMetaMask, plotId) {
     to: newOwner,
     timestamp: nowSec,
     priceWei: salePriceWei,
-    reason: 'Verified Blockchain Sale & Atomic Escrow Settlement',
+    reason: 'Dual-Signature Transfer (KDA Endorsed + Board of Revenue Countersigned)',
     txHash
   });
 
   cloud.transactions.unshift({
     hash: txHash,
     type: 'TITLE_TRANSFERRED',
-    summary: `Title transferred for ${target.kdaPlotNumber} (${ethers.formatEther(BigInt(salePriceWei))} ETH released)`,
-    actor: currentUser?.walletAddress || SIMULATED_ROLES.REGISTRAR.address,
+    summary: `Title transferred for ${target.kdaPlotNumber} after 2/2 signatures (${ethers.formatEther(BigInt(salePriceWei))} ETH released)`,
+    actor: currentUser.walletAddress,
     plotCode: target.kdaPlotNumber,
     blockNumber: cloud.blockNumber,
     timestamp: nowSec
@@ -968,6 +1096,7 @@ export async function ledgerCancelEscrow(currentUser, isMetaMask, plotId) {
 
   target.escrowBuyer = null;
   target.escrowAmountWei = '0';
+  target.transferApproval = null;
   target.status = target.isDisputed ? 3 : 1; // Return to LISTED_FOR_SALE unless disputed
 
   cloud.transactions.unshift({
@@ -1020,6 +1149,7 @@ export async function ledgerFlagDispute(currentUser, isMetaMask, plotId, reason)
   const hadEscrow = Number(target.status) === 2 && target.escrowBuyer;
   target.escrowBuyer = null;
   target.escrowAmountWei = '0';
+  target.transferApproval = null;
   target.priceWei = '0';
   target.isDisputed = true;
   target.disputeReason = cleanReason;

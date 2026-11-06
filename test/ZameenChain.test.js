@@ -84,21 +84,38 @@ describe("🏛️ ZameenChain: Karachi Land Registry & Anti-Fraud Escrow", funct
       expect(deals[0].isActive).to.be.true;
     });
 
-    it("Should complete transfer upon KDA Registrar approval and release funds to seller", async function () {
+    it("Should complete transfer only after dual signatures (KDA endorse + Board of Revenue countersign)", async function () {
       const salePrice = ethers.parseEther("5.0");
       await zameenChain.connect(seller).listPlotForSale(1, salePrice);
       await zameenChain.connect(buyer).depositEscrow(1, { value: salePrice });
 
+      await zameenChain.connect(registrar).registerRegistrarOfficer(
+        subOfficer.address, "Engr. Tariq Mansoor", "KDA-SR-001", "Civic Centre"
+      );
+
       const sellerInitialBalance = await ethers.provider.getBalance(seller.address);
 
       const newDeedHash = "QmNewTransferredDeedHashBuyer2026";
-      const tx = await zameenChain.connect(registrar).approveAndCompleteTransfer(1, newDeedHash);
-      await tx.wait();
+      await zameenChain.connect(subOfficer).endorseTransfer(1, newDeedHash);
 
-      const plot = await zameenChain.plots(1);
+      // Signature 1 alone moves nothing
+      let plot = await zameenChain.plots(1);
+      expect(plot.currentOwner).to.equal(seller.address);
+      expect(plot.status).to.equal(2);
+      const approval = await zameenChain.transferApprovals(1);
+      expect(approval.isEndorsed).to.be.true;
+      expect(approval.endorsedBy).to.equal(subOfficer.address);
+
+      // Signature 2 (Board of Revenue = superAdmin) executes atomic settlement
+      await expect(zameenChain.connect(registrar).countersignTransfer(1))
+        .to.emit(zameenChain, "TransferCountersigned")
+        .withArgs(1, subOfficer.address, registrar.address);
+
+      plot = await zameenChain.plots(1);
       expect(plot.currentOwner).to.equal(buyer.address);
       expect(plot.status).to.equal(0); // REGISTERED
       expect(plot.ipfsDeedHash).to.equal(newDeedHash);
+      expect((await zameenChain.transferApprovals(1)).isEndorsed).to.be.false;
 
       const sellerFinalBalance = await ethers.provider.getBalance(seller.address);
       expect(sellerFinalBalance - sellerInitialBalance).to.equal(salePrice);
@@ -108,6 +125,81 @@ describe("🏛️ ZameenChain: Karachi Land Registry & Anti-Fraud Escrow", funct
       expect(history[1].from).to.equal(seller.address);
       expect(history[1].to).to.equal(buyer.address);
       expect(history[1].price).to.equal(salePrice);
+    });
+  });
+
+  describe("2b. Dual-Signature Controls (No Single Point of Trust)", function () {
+    const salePrice = ethers.parseEther("3.0");
+
+    beforeEach(async function () {
+      await zameenChain.connect(registrar).registerPlot(samplePlotInput);
+      await zameenChain.connect(seller).listPlotForSale(1, salePrice);
+      await zameenChain.connect(buyer).depositEscrow(1, { value: salePrice });
+      await zameenChain.connect(registrar).registerRegistrarOfficer(
+        subOfficer.address, "Engr. Tariq Mansoor", "KDA-SR-001", "Civic Centre"
+      );
+    });
+
+    it("Should reject countersign before a KDA endorsement exists", async function () {
+      await expect(zameenChain.connect(registrar).countersignTransfer(1)).to.be.revertedWith(
+        "ZameenChain: Awaiting KDA Sub-Registrar endorsement (signature 1 of 2)"
+      );
+    });
+
+    it("Should block a Sub-Registrar from countersigning (only Board of Revenue can)", async function () {
+      await zameenChain.connect(subOfficer).endorseTransfer(1, "QmDeed");
+      await expect(zameenChain.connect(subOfficer).countersignTransfer(1)).to.be.revertedWith(
+        "ZameenChain: Caller is not a Board of Revenue countersigning authority"
+      );
+    });
+
+    it("Should block the Board of Revenue from also acting as endorser (separation of duties)", async function () {
+      await expect(zameenChain.connect(registrar).endorseTransfer(1, "QmDeed")).to.be.revertedWith(
+        "ZameenChain: Separation of duties - Board of Revenue cannot endorse as Sub-Registrar"
+      );
+    });
+
+    it("Should block unauthorized wallets and duplicate endorsements", async function () {
+      await expect(zameenChain.connect(unauthorizedUser).endorseTransfer(1, "QmDeed")).to.be.revertedWith(
+        "ZameenChain: Caller is not the authorized KDA Registrar"
+      );
+      await zameenChain.connect(subOfficer).endorseTransfer(1, "QmDeed");
+      await expect(zameenChain.connect(subOfficer).endorseTransfer(1, "QmDeed2")).to.be.revertedWith(
+        "ZameenChain: Transfer already endorsed"
+      );
+    });
+
+    it("Should block a party to the sale from signing (conflict of interest)", async function () {
+      await zameenChain.connect(registrar).registerRegistrarOfficer(
+        buyer.address, "Corrupt Insider", "KDA-SR-666", "Shadow Office"
+      );
+      await expect(zameenChain.connect(buyer).endorseTransfer(1, "QmDeed")).to.be.revertedWith(
+        "ZameenChain: Conflict of interest - party to the sale cannot sign"
+      );
+    });
+
+    it("Should invalidate a pending endorsement when escrow is cancelled or a stay order lands", async function () {
+      await zameenChain.connect(subOfficer).endorseTransfer(1, "QmDeed");
+      await expect(zameenChain.connect(buyer).cancelEscrow(1)).to.emit(zameenChain, "TransferEndorsementRevoked");
+      expect((await zameenChain.transferApprovals(1)).isEndorsed).to.be.false;
+
+      // Re-deposit, endorse, then court stay order hits
+      await zameenChain.connect(unauthorizedUser).depositEscrow(1, { value: salePrice });
+      await zameenChain.connect(subOfficer).endorseTransfer(1, "QmDeed");
+      await zameenChain.connect(registrar).flagDispute(1, "SHC Stay Order #SHC-2026/777");
+      expect((await zameenChain.transferApprovals(1)).isEndorsed).to.be.false;
+    });
+
+    it("Should enforce separation of duties when appointing revenue officers", async function () {
+      await expect(zameenChain.connect(registrar).setRevenueOfficer(subOfficer.address, true)).to.be.revertedWith(
+        "ZameenChain: Separation of duties - Sub-Registrar cannot be a revenue countersigner"
+      );
+      await zameenChain.connect(registrar).setRevenueOfficer(unauthorizedUser.address, true);
+      expect(await zameenChain.isRevenueAuthority(unauthorizedUser.address)).to.be.true;
+
+      await zameenChain.connect(subOfficer).endorseTransfer(1, "QmDeed");
+      await zameenChain.connect(unauthorizedUser).countersignTransfer(1);
+      expect((await zameenChain.plots(1)).currentOwner).to.equal(buyer.address);
     });
   });
 
@@ -184,7 +276,7 @@ describe("🏛️ ZameenChain: Karachi Land Registry & Anti-Fraud Escrow", funct
       await zameenChain.connect(registrar).setEmergencyFreeze(true);
 
       await expect(
-        zameenChain.connect(registrar).approveAndCompleteTransfer(1, "QmBlocked")
+        zameenChain.connect(registrar).countersignTransfer(1)
       ).to.be.revertedWith("ZameenChain: City-wide emergency market freeze is active");
 
       // Buyer can still safely withdraw escrow during freeze

@@ -209,7 +209,7 @@ export default function PlotsDirectory({
                     ) : isEscrow ? (
                       <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 whitespace-nowrap shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                        In Escrow
+                        {plot.transferApproval?.endorsedBy ? 'Escrow (1/2 Endorsed)' : 'In Escrow (2-of-2 Multi-Sig)'}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#065F46] border border-emerald-200 whitespace-nowrap shrink-0">

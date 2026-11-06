@@ -7,11 +7,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function main() {
-  const [registrar, owner1, owner2, buyer] = await hre.ethers.getSigners();
+  const signers = await hre.ethers.getSigners();
+  const [registrar, owner1, owner2, buyer] = signers;
+  // Hardhat account #5 = Engr. Tariq Mansoor (KDA Sub-Registrar, Signature 1 of 2).
+  // The deployer (#0) acts as Sindh Board of Revenue / Chief Admin (Signature 2 of 2).
+  const kdaSubRegistrar = signers[5];
 
   console.log("--------------------------------------------------");
   console.log("🏛️ Deploying ZameenChain Sovereign Smart Contract...");
-  console.log("KDA Registrar Address:", registrar.address);
+  console.log("Board of Revenue / Chief Admin Address:", registrar.address);
+  console.log("KDA Sub-Registrar Address:", kdaSubRegistrar.address);
 
   const ZameenChain = await hre.ethers.getContractFactory("ZameenChain");
   const contract = await ZameenChain.deploy();
@@ -19,6 +24,18 @@ async function main() {
   const contractAddress = await contract.getAddress();
 
   console.log("✅ ZameenChain Deployed at:", contractAddress);
+
+  await (
+    await contract
+      .connect(registrar)
+      .registerRegistrarOfficer(
+        kdaSubRegistrar.address,
+        "Engr. Tariq Mansoor (Chief Sub-Registrar)",
+        "KDA-SR-001",
+        "KDA Civic Centre Main Secretariat"
+      )
+  ).wait();
+  console.log("✅ KDA Sub-Registrar accredited (dual-signature Maker key)");
   console.log("--------------------------------------------------");
   console.log("🌱 Seeding realistic Karachi Land Registry records...");
 
@@ -134,6 +151,7 @@ async function main() {
     network: "hardhat",
     accounts: {
       registrar: registrar.address,
+      kdaSubRegistrar: kdaSubRegistrar.address,
       owner1: owner1.address,
       owner2: owner2.address,
       buyer: buyer.address

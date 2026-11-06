@@ -13,7 +13,8 @@ import {
   Trash2,
   UserX,
   RotateCcw,
-  KeyRound
+  KeyRound,
+  FileCheck
 } from 'lucide-react';
 import {
   fetchAllUsersFromDb,
@@ -21,7 +22,7 @@ import {
   rejectRegistrarInDb,
   deleteUserFromDb
 } from '../utils/authService';
-import { shortenAddress } from '../utils/formatters';
+import { formatEth, formatPkrFromWei, shortenAddress } from '../utils/formatters';
 
 export default function AdminPortal({
   currentUser,
@@ -32,6 +33,8 @@ export default function AdminPortal({
   onResolveDispute,
   onRegisterOfficerOnChain,
   onRemoveOfficer,
+  onCountersignTransfer,
+  onCancelEscrow,
   onOpenAuth,
   showToast
 }) {
@@ -43,6 +46,9 @@ export default function AdminPortal({
 
   const isChiefAdmin =
     currentUser?.role === 'ADMIN' || currentUser?.email === 'rayyan.ahmed@sindh.gov.pk';
+
+  const escrowPlots = plots.filter((p) => Number(p.status) === 2);
+  const pendingCountersign = escrowPlots.filter((p) => p.transferApproval?.endorsedBy);
 
   const loadUsers = async () => {
     try {
@@ -309,6 +315,18 @@ export default function AdminPortal({
         >
           <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
           <span>Stay Orders ({disputedPlots.length})</span>
+        </button>
+
+        <button
+          onClick={() => setAdminSection('multisig')}
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-md font-medium transition cursor-pointer whitespace-nowrap shrink-0 ${
+            adminSection === 'multisig'
+              ? 'bg-white text-[#111315] font-semibold shadow-xs'
+              : 'text-zinc-600 hover:text-[#111315]'
+          }`}
+        >
+          <FileCheck className="w-3.5 h-3.5 shrink-0" />
+          <span>Dual-Sig Countersign ({pendingCountersign.length})</span>
         </button>
       </div>
 
@@ -642,6 +660,147 @@ export default function AdminPortal({
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. DUAL-SIGNATURE COUNTERSIGNING DESK */}
+      {adminSection === 'multisig' && (
+        <div className="bg-white border border-[#E4E4E0] p-5 sm:p-6 rounded-xl shadow-[0_1px_3px_rgba(16,24,40,0.04)]">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-[#111315]">
+                  Sindh Board of Revenue Countersigning Desk (Signature 2 of 2)
+                </h3>
+                <span className="text-[10px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#0B5D46] border border-emerald-200">
+                  Checker Authority
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500 mt-1 max-w-2xl leading-relaxed">
+                Dual-control settlement: An accredited KDA Sub-Registrar provides the Maker endorsement. As the Board of Revenue authority, you countersign here to execute the atomic mutation and release escrow funds to the seller.
+              </p>
+            </div>
+            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 shrink-0 tabular-nums">
+              {pendingCountersign.length} Endorsed by KDA
+            </span>
+          </div>
+
+          {escrowPlots.length === 0 ? (
+            <div className="p-8 text-center border border-dashed border-[#D4D4CE] rounded-lg bg-[#FBFBFA] text-zinc-500 text-xs">
+              No active escrow deals in progress. When a citizen deposits ETH into Smart Escrow, the dual-signature pipeline will appear here.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {escrowPlots.map((plot) => {
+                const approval = plot.transferApproval;
+                const isEndorsed = Boolean(approval?.endorsedBy);
+
+                return (
+                  <div
+                    key={plot.id}
+                    className="p-4 sm:p-5 rounded-xl bg-[#FBFBFA] border border-[#E4E4E0] space-y-3.5"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-mono font-semibold text-[#111315] bg-white px-2 py-0.5 rounded border border-[#E4E4E0]">
+                          {plot.kdaPlotNumber}
+                        </span>
+                        <span className="text-sm font-bold text-[#111315]">
+                          {plot.schemeName} ({plot.sector}, Plot #{plot.plotNumber})
+                        </span>
+                      </div>
+
+                      <span
+                        className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border self-start sm:self-auto shrink-0 ${
+                          isEndorsed
+                            ? 'bg-emerald-50 text-[#0B5D46] border-emerald-200'
+                            : 'bg-amber-50 text-amber-800 border-amber-200'
+                        }`}
+                      >
+                        {isEndorsed ? '● Ready for Board Countersignature' : '○ Awaiting KDA Sub-Registrar (Sig 1)'}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-zinc-500 font-mono">
+                      <span>Seller: {shortenAddress(plot.currentOwner, 6, 4)}</span>
+                      {plot.escrowBuyer && (
+                        <span className="text-blue-700">
+                          Buyer: {shortenAddress(plot.escrowBuyer, 6, 4)}
+                        </span>
+                      )}
+                      <span className="text-[#0B5D46] font-semibold font-sans">
+                        Locked Amount: {formatEth(plot.escrowAmount || plot.price)} (≈{' '}
+                        {formatPkrFromWei(plot.escrowAmount || plot.price)})
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="p-3 rounded-lg bg-white border border-[#E4E4E0] text-xs space-y-1.5">
+                      <div className="flex items-center justify-between text-zinc-600">
+                        <span className="font-semibold text-[#111315]">Dual-Control Audit Trail</span>
+                        <span className="font-mono text-[11px] text-zinc-500">
+                          {isEndorsed ? 'Status: 1 of 2 Signatures Validated' : 'Status: 0 of 2 Signatures Validated'}
+                        </span>
+                      </div>
+
+                      <div className="text-[11px] text-zinc-500 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2
+                            className={`w-3.5 h-3.5 shrink-0 ${
+                              isEndorsed ? 'text-[#0B5D46]' : 'text-zinc-300'
+                            }`}
+                          />
+                          <span>
+                            {isEndorsed
+                              ? `Signature 1 (Maker): Endorsed by KDA Sub-Registrar (${shortenAddress(
+                                  approval.endorsedBy,
+                                  6,
+                                  4
+                                )})`
+                              : 'Signature 1 (Maker): Awaiting KDA Sub-Registrar biometric verification & endorsement'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-zinc-300" />
+                          <span>
+                            Signature 2 (Checker): Sindh Board of Revenue countersignature (Executive release)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-[#E4E4E0]">
+                      <p className="text-[11px] text-zinc-600">
+                        {isEndorsed
+                          ? 'KDA clearance confirmed on-chain. Countersign to mutate Sanad Form-VII & release funds.'
+                          : 'Separation of duties: Board of Revenue cannot endorse as Sub-Registrar. Awaiting KDA.'}
+                      </p>
+
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+                        <button
+                          disabled={isEmergencyFrozen || !isEndorsed}
+                          onClick={() => onCountersignTransfer(plot.id)}
+                          className="bg-[#111315] hover:bg-black disabled:opacity-40 text-white font-semibold text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                          <span>Countersign & Mutate Title (2/2)</span>
+                        </button>
+
+                        <button
+                          onClick={() => onCancelEscrow(plot)}
+                          className="bg-white hover:bg-red-50 text-red-700 text-xs font-semibold px-4 py-2.5 rounded-lg border border-[#D4D4CE] hover:border-red-200 cursor-pointer text-center whitespace-nowrap"
+                        >
+                          Reject Deal & Refund
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

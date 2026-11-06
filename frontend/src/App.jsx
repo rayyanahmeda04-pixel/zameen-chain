@@ -23,7 +23,8 @@ import {
   ledgerListPlot,
   ledgerDelistPlot,
   ledgerDepositEscrow,
-  ledgerApproveTransfer,
+  ledgerEndorseTransfer,
+  ledgerCountersignTransfer,
   ledgerCancelEscrow,
   ledgerFlagDispute,
   ledgerResolveDispute,
@@ -303,16 +304,29 @@ export default function App() {
     setActionModalState({ type: 'DEPOSIT_ESCROW', plot: targetPlot });
   };
 
-  const handleApproveTransfer = async (plotId) => {
+  const handleEndorseTransfer = async (plotId) => {
     try {
-      const res = await ledgerApproveTransfer(currentUser, isMetaMaskConnected, plotId);
+      const res = await ledgerEndorseTransfer(currentUser, isMetaMaskConnected, plotId);
       showToast(
-        `Transfer certified! Legal Sanad mutated & escrow released (${shortenAddress(res.txHash, 8, 6)}).`,
+        `Signature 1 of 2 recorded! KDA Sub-Registrar endorsed the deed (${shortenAddress(res.txHash, 8, 6)}). Awaiting Board of Revenue countersignature.`,
         'success'
       );
       await loadLedger(false);
     } catch (err) {
-      showToast(err.reason || err.message || 'Transfer certification failed.', 'error');
+      showToast(err.reason || err.message || 'KDA Endorsement failed.', 'error');
+    }
+  };
+
+  const handleCountersignTransfer = async (plotId) => {
+    try {
+      const res = await ledgerCountersignTransfer(currentUser, isMetaMaskConnected, plotId);
+      showToast(
+        `Signature 2 of 2 recorded! Board of Revenue countersigned (${shortenAddress(res.txHash, 8, 6)}). Legal Sanad mutated & escrow funds released.`,
+        'success'
+      );
+      await loadLedger(false);
+    } catch (err) {
+      showToast(err.reason || err.message || 'Board of Revenue countersignature failed.', 'error');
     }
   };
 
@@ -895,7 +909,8 @@ export default function App() {
                   onSwitchToRegistrar={() => setIsAuthModalOpen(true)}
                   onRegisterPlot={handleRegisterPlot}
                   onRegisterOfficer={handleRegisterOfficer}
-                  onApproveTransfer={handleApproveTransfer}
+                  onEndorseTransfer={handleEndorseTransfer}
+                  onCountersignTransfer={handleCountersignTransfer}
                   onCancelEscrow={openCancelEscrowModal}
                   officers={officers}
                 />
@@ -911,6 +926,8 @@ export default function App() {
                   onResolveDispute={handleResolveDispute}
                   onRegisterOfficerOnChain={handleRegisterOfficer}
                   onRemoveOfficer={handleRemoveOfficer}
+                  onCountersignTransfer={handleCountersignTransfer}
+                  onCancelEscrow={openCancelEscrowModal}
                   onOpenAuth={() => setIsAuthModalOpen(true)}
                   showToast={showToast}
                 />

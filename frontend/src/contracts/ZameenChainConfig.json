@@ -252,6 +252,94 @@
       "type": "event"
     },
     {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "officer",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "isActive",
+          "type": "bool"
+        }
+      ],
+      "name": "RevenueOfficerUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "plotId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "registrar",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "revenueOfficer",
+          "type": "address"
+        }
+      ],
+      "name": "TransferCountersigned",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "plotId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "registrar",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "newDeedIpfsHash",
+          "type": "string"
+        }
+      ],
+      "name": "TransferEndorsed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "plotId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "reason",
+          "type": "string"
+        }
+      ],
+      "name": "TransferEndorsementRevoked",
+      "type": "event"
+    },
+    {
       "inputs": [
         {
           "internalType": "uint256",
@@ -276,14 +364,9 @@
           "internalType": "uint256",
           "name": "_plotId",
           "type": "uint256"
-        },
-        {
-          "internalType": "string",
-          "name": "_newDeedIpfsHash",
-          "type": "string"
         }
       ],
-      "name": "approveAndCompleteTransfer",
+      "name": "cancelEscrow",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -296,7 +379,7 @@
           "type": "uint256"
         }
       ],
-      "name": "cancelEscrow",
+      "name": "countersignTransfer",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -338,6 +421,24 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_plotId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "_newDeedIpfsHash",
+          "type": "string"
+        }
+      ],
+      "name": "endorseTransfer",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -558,6 +659,41 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "getAllTransferApprovals",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "endorsedBy",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "endorsedAt",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "newDeedIpfsHash",
+              "type": "string"
+            },
+            {
+              "internalType": "bool",
+              "name": "isEndorsed",
+              "type": "bool"
+            }
+          ],
+          "internalType": "struct ZameenChain.TransferApproval[]",
+          "name": "",
+          "type": "tuple[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "uint256",
@@ -625,6 +761,25 @@
         }
       ],
       "name": "isKdaNumberRegistered",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_account",
+          "type": "address"
+        }
+      ],
+      "name": "isRevenueAuthority",
       "outputs": [
         {
           "internalType": "bool",
@@ -939,6 +1094,25 @@
       "inputs": [
         {
           "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "revenueOfficers",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
           "name": "_officerAddress",
           "type": "address"
         }
@@ -962,6 +1136,24 @@
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_officer",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "_isActive",
+          "type": "bool"
+        }
+      ],
+      "name": "setRevenueOfficer",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "superAdmin",
       "outputs": [
@@ -969,6 +1161,40 @@
           "internalType": "address",
           "name": "",
           "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "transferApprovals",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "endorsedBy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "endorsedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "newDeedIpfsHash",
+          "type": "string"
+        },
+        {
+          "internalType": "bool",
+          "name": "isEndorsed",
+          "type": "bool"
         }
       ],
       "stateMutability": "view",

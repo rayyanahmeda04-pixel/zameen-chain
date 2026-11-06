@@ -68,7 +68,7 @@ async function main() {
       '42101-1122334-5',
       'KDA-SR-001',
       'KDA Civic Centre - Directorate of Land Management',
-      '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+      '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc'
     ),
     (
       'Khurram Shahzad (Applicant)',
@@ -115,6 +115,13 @@ async function main() {
       '0x90F79bf6EB2c4f870365E785982E1f101E93b906'
     )
     ON CONFLICT (email) DO NOTHING;
+  `;
+
+  // Dual-signature separation of duties: KDA Sub-Registrar must hold a different key
+  // from the Chief Admin / Board of Revenue countersigner.
+  await sql`
+    UPDATE users SET wallet_address = '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc'
+    WHERE LOWER(email) = 'tariq.mansoor@kda.gos.pk';
   `;
 
   const allUsers = await sql`SELECT id, name, email, role, status, wallet_address FROM users ORDER BY id ASC`;

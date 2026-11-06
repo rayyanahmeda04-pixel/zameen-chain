@@ -93,7 +93,8 @@ export function shortenAddress(addr, start = 6, end = 4) {
  * Known identity resolver for cleaner display alongside raw wallet addresses
  */
 export const KNOWN_WALLET_IDENTITIES = {
-  '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266': 'KDA Chief Secretariat / Admin',
+  '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266': 'Sindh Board of Revenue / Chief Admin',
+  '0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc': 'Engr. Tariq Mansoor (KDA Sub-Registrar)',
   '0x70997970c51812dc3a010c7d01b50e0d17dc79c8': 'Aamir Khan (Verified Citizen)',
   '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc': 'Bilal Siddiqui (Verified Citizen)',
   '0x90f79bf6eb2c4f870365e785982e1f101e93b906': 'Hamza Sheikh (Verified Citizen)',

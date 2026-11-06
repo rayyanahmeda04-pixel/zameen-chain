@@ -64,7 +64,8 @@ export default function RegistrarPanel({
   onSwitchToRegistrar,
   onRegisterPlot,
   onRegisterOfficer,
-  onApproveTransfer,
+  onEndorseTransfer,
+  onCountersignTransfer,
   onCancelEscrow,
   officers = []
 }) {
@@ -557,44 +558,68 @@ export default function RegistrarPanel({
         </div>
       )}
 
-      {/* 2. PENDING ESCROW STAMPING */}
+      {/* 2. PENDING ESCROW DUAL-SIGNATURE STAMPING */}
       {panelSection === 'escrows' && (
         <div className="bg-white border border-[#E4E4E0] p-5 sm:p-6 rounded-xl shadow-[0_1px_3px_rgba(16,24,40,0.04)]">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <div>
-              <h3 className="text-base font-bold text-[#111315]">
-                Escrow Deeds Awaiting Certification
-              </h3>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                Verify biometric clearance, tax challans, and non-encumbrance before releasing escrow funds.
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-[#111315]">
+                  Dual-Signature Escrow Settlements (2-of-2 Multi-Sig)
+                </h3>
+                <span className="text-[10px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#0B5D46] border border-emerald-200">
+                  Maker-Checker
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500 mt-1 max-w-2xl leading-relaxed">
+                Single trusted party eliminated: Title mutation and escrow release require <strong>two separate institutional signatures</strong> — Signature 1 from an accredited KDA Sub-Registrar (biometric & tax clearance), and Signature 2 from the Sindh Board of Revenue.
               </p>
             </div>
             <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shrink-0 tabular-nums">
-              {escrowPlots.length} Awaiting
+              {escrowPlots.length} In Pipeline
             </span>
           </div>
 
           {escrowPlots.length === 0 ? (
             <div className="p-8 text-center border border-dashed border-[#D4D4CE] rounded-lg bg-[#FBFBFA] text-zinc-500 text-xs">
-              All escrow settlements are clear. When a buyer deposits ETH into Smart Escrow, the transfer dossier appears here for certification.
+              All escrow settlements are clear. When a citizen deposits ETH into Smart Escrow, the transfer dossier appears here for KDA Sub-Registrar endorsement (Signature 1 of 2).
             </div>
           ) : (
-            <div className="space-y-3.5">
-              {escrowPlots.map((plot) => (
-                <div
-                  key={plot.id}
-                  className="p-4 rounded-xl bg-[#FBFBFA] border border-[#E4E4E0] flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1 min-w-0 tabular-nums">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-mono font-semibold text-[#111315] bg-white px-2 py-0.5 rounded border border-[#E4E4E0]">
-                        {plot.kdaPlotNumber}
-                      </span>
-                      <span className="text-sm font-bold text-[#111315]">
-                        {plot.schemeName} ({plot.sector}, Plot #{plot.plotNumber})
+            <div className="space-y-4">
+              {escrowPlots.map((plot) => {
+                const approval = plot.transferApproval;
+                const isEndorsed = Boolean(approval?.endorsedBy);
+                const isRegistrarUser = activeRole?.role === 'REGISTRAR';
+                const isAdminUser = activeRole?.role === 'ADMIN';
+
+                return (
+                  <div
+                    key={plot.id}
+                    className="p-4 sm:p-5 rounded-xl bg-[#FBFBFA] border border-[#E4E4E0] space-y-3.5"
+                  >
+                    {/* Header: Plot + Status */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-mono font-semibold text-[#111315] bg-white px-2 py-0.5 rounded border border-[#E4E4E0]">
+                          {plot.kdaPlotNumber}
+                        </span>
+                        <span className="text-sm font-bold text-[#111315]">
+                          {plot.schemeName} ({plot.sector}, Plot #{plot.plotNumber})
+                        </span>
+                      </div>
+
+                      <span
+                        className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border self-start sm:self-auto shrink-0 ${
+                          isEndorsed
+                            ? 'bg-blue-50 text-blue-800 border-blue-200'
+                            : 'bg-amber-50 text-amber-800 border-amber-200'
+                        }`}
+                      >
+                        {isEndorsed ? '● Signature 1 of 2 Completed' : '○ Awaiting Signature 1 of 2'}
                       </span>
                     </div>
 
+                    {/* Parties & Escrow Amount */}
                     <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-zinc-500 font-mono">
                       <span>Seller: {shortenAddress(plot.currentOwner, 6, 4)}</span>
                       {plot.escrowBuyer && (
@@ -602,33 +627,115 @@ export default function RegistrarPanel({
                           Buyer: {shortenAddress(plot.escrowBuyer, 6, 4)}
                         </span>
                       )}
+                      <span className="text-[#0B5D46] font-semibold font-sans">
+                        Vault Locked: {formatEth(plot.escrowAmount || plot.price)} (≈{' '}
+                        {formatPkrFromWei(plot.escrowAmount || plot.price)})
+                      </span>
                     </div>
 
-                    <p className="text-xs text-[#0B5D46] font-semibold">
-                      Vault Locked: {formatEth(plot.escrowAmount || plot.price)} (≈{' '}
-                      {formatPkrFromWei(plot.escrowAmount || plot.price)})
-                    </p>
-                  </div>
+                    {/* 3-Step Dual-Signature Visual Tracker */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-[#E4E4E0] text-[11px]">
+                      <div className="p-2.5 rounded-lg bg-white border border-[#E4E4E0] space-y-0.5">
+                        <div className="flex items-center gap-1.5 text-[#0B5D46] font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>1. Escrow Deposited</span>
+                        </div>
+                        <p className="text-[10px] text-zinc-500">ETH vault secured on smart contract</p>
+                      </div>
 
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
-                    <button
-                      disabled={isEmergencyFrozen}
-                      onClick={() => onApproveTransfer(plot.id)}
-                      className="bg-[#0B5D46] hover:bg-[#094B38] disabled:opacity-40 text-white font-semibold text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                      <span>Stamp Sanad & Release ETH</span>
-                    </button>
+                      <div
+                        className={`p-2.5 rounded-lg border space-y-0.5 ${
+                          isEndorsed
+                            ? 'bg-blue-50/60 border-blue-200 text-blue-900'
+                            : 'bg-white border-[#E4E4E0] text-zinc-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-semibold">
+                          <CheckCircle2
+                            className={`w-3.5 h-3.5 shrink-0 ${
+                              isEndorsed ? 'text-blue-700' : 'text-zinc-400'
+                            }`}
+                          />
+                          <span>2. KDA Endorsement</span>
+                        </div>
+                        <p className="text-[10px] text-zinc-500 truncate">
+                          {isEndorsed
+                            ? `Endorsed by ${shortenAddress(approval.endorsedBy, 6, 4)}`
+                            : 'Maker check: Biometrics & Challans'}
+                        </p>
+                      </div>
 
-                    <button
-                      onClick={() => onCancelEscrow(plot)}
-                      className="bg-white hover:bg-red-50 text-red-700 text-xs font-semibold px-4 py-2.5 rounded-lg border border-[#D4D4CE] hover:border-red-200 cursor-pointer text-center"
-                    >
-                      Reject & Refund Buyer
-                    </button>
+                      <div className="p-2.5 rounded-lg bg-white border border-[#E4E4E0] space-y-0.5 text-zinc-700">
+                        <div className="flex items-center gap-1.5 font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
+                          <span>3. Board Countersign</span>
+                        </div>
+                        <p className="text-[10px] text-zinc-500">
+                          Checker: Releases ETH & mutates Sanad
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Action Triggers */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-[#E4E4E0]">
+                      <div className="text-[11px] text-zinc-600">
+                        {!isEndorsed ? (
+                          isRegistrarUser ? (
+                            <span className="text-[#0B5D46] font-medium">
+                              Ready for your review: Confirm biometrics and provide 1st signature.
+                            </span>
+                          ) : (
+                            <span className="text-amber-800">
+                              Awaiting KDA Sub-Registrar endorsement (Signature 1 of 2).
+                            </span>
+                          )
+                        ) : isAdminUser ? (
+                          <span className="text-[#0B5D46] font-medium">
+                            Endorsement verified: Board of Revenue can now countersign to release funds.
+                          </span>
+                        ) : (
+                          <span className="text-blue-800 font-medium">
+                            Signature 1 recorded. Switch to Chief Admin role to provide Signature 2.
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+                        {/* Signature 1 Button */}
+                        {!isEndorsed && (
+                          <button
+                            disabled={isEmergencyFrozen || !isRegistrarUser}
+                            onClick={() => onEndorseTransfer(plot.id)}
+                            className="bg-[#0B5D46] hover:bg-[#094B38] disabled:opacity-40 text-white font-semibold text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                            <span>1st Signature: Endorse (KDA)</span>
+                          </button>
+                        )}
+
+                        {/* Signature 2 Button */}
+                        {isEndorsed && (
+                          <button
+                            disabled={isEmergencyFrozen || !isAdminUser}
+                            onClick={() => onCountersignTransfer(plot.id)}
+                            className="bg-[#111315] hover:bg-black disabled:opacity-40 text-white font-semibold text-xs px-4 py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                            <span>2nd Signature: Countersign (Board)</span>
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => onCancelEscrow(plot)}
+                          className="bg-white hover:bg-red-50 text-red-700 text-xs font-semibold px-4 py-2.5 rounded-lg border border-[#D4D4CE] hover:border-red-200 cursor-pointer text-center whitespace-nowrap"
+                        >
+                          Reject & Refund Buyer
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

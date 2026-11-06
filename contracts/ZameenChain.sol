@@ -7,6 +7,8 @@ pragma solidity ^0.8.24;
  *      for Karachi Urban Real Estate (Government of Sindh / KDA Cadastre).
  *      Eliminates duplicate plot files, double allotments, advance-token fraud,
  *      and enforces Sindh High Court stay orders cryptographically.
+ *      Title transfers require dual-signature (2-of-2) approval: a KDA Sub-Registrar
+ *      endorsement plus a separate Sindh Board of Revenue countersignature.
  */
 contract ZameenChain {
     address public superAdmin; // Government of Sindh / Ministry of Revenue
@@ -41,6 +43,19 @@ contract ZameenChain {
         address payable buyer;
         uint256 amount;
         bool isActive;
+    }
+
+    /**
+     * @notice Dual-Signature (2-of-2 Maker-Checker) transfer approval.
+     * Signature 1 (Maker):   KDA Sub-Registrar verifies documents & endorses the deed.
+     * Signature 2 (Checker): Sindh Board of Revenue authority countersigns & releases escrow.
+     * No single official can ever transfer a title or release buyer funds alone.
+     */
+    struct TransferApproval {
+        address endorsedBy;        // KDA Sub-Registrar (Signature 1 of 2)
+        uint256 endorsedAt;
+        string newDeedIpfsHash;    // Deed hash proposed by the endorsing registrar
+        bool isEndorsed;
     }
 
     struct LandPlot {
@@ -92,6 +107,12 @@ contract ZameenChain {
     // Plot ID => EscrowDeal
     mapping(uint256 => EscrowDeal) public escrowDeals;
 
+    // Plot ID => Pending dual-signature transfer approval
+    mapping(uint256 => TransferApproval) public transferApprovals;
+
+    // Sindh Board of Revenue countersigning authorities (Signature 2 of 2)
+    mapping(address => bool) public revenueOfficers;
+
     // Plot ID => Ownership History
     mapping(uint256 => OwnershipRecord[]) private plotAuditTrail;
 
@@ -107,6 +128,10 @@ contract ZameenChain {
     event OwnershipTransferred(uint256 indexed plotId, address indexed from, address indexed to, uint256 price);
     event DisputeFlagged(uint256 indexed plotId, string reason);
     event DisputeResolved(uint256 indexed plotId);
+    event RevenueOfficerUpdated(address indexed officer, bool isActive);
+    event TransferEndorsed(uint256 indexed plotId, address indexed registrar, string newDeedIpfsHash);
+    event TransferEndorsementRevoked(uint256 indexed plotId, string reason);
+    event TransferCountersigned(uint256 indexed plotId, address indexed registrar, address indexed revenueOfficer);
 
     modifier onlyRegistrar() {
         require(
@@ -121,6 +146,11 @@ contract ZameenChain {
             msg.sender == superAdmin || msg.sender == governmentRegistrar,
             "ZameenChain: Caller is not Chief Administrator"
         );
+        _;
+    }
+
+    modifier onlyRevenueAuthority() {
+        require(isRevenueAuthority(msg.sender), "ZameenChain: Caller is not a Board of Revenue countersigning authority");
         _;
     }
 
@@ -143,17 +173,42 @@ contract ZameenChain {
         superAdmin = msg.sender;
         governmentRegistrar = msg.sender;
 
-        // Auto-register primary initial registrar officer
+        // Auto-register genesis authority (deployer). Operational KDA Sub-Registrars are
+        // accredited separately so that Signature 1 (KDA) and Signature 2 (Board of Revenue)
+        // are always held by different keys.
         registrarOfficers[msg.sender] = RegistrarOfficer({
             officerAddress: msg.sender,
-            officerName: "Engr. Tariq Mansoor (Chief Sub-Registrar)",
-            badgeNumber: "KDA-SR-001",
-            districtBranch: "KDA Civic Centre Main Secretariat",
+            officerName: "Sindh Board of Revenue (Genesis Authority)",
+            badgeNumber: "SBR-GENESIS-001",
+            districtBranch: "Board of Revenue Sindh, Karachi Secretariat",
             isActive: true,
             registeredAt: block.timestamp
         });
         allRegistrarAddresses.push(msg.sender);
         isRegistrarTracked[msg.sender] = true;
+    }
+
+    /**
+     * @notice Returns true if the address may provide Signature 2 (Board of Revenue countersign).
+     */
+    function isRevenueAuthority(address _account) public view returns (bool) {
+        return _account == superAdmin || _account == governmentRegistrar || revenueOfficers[_account];
+    }
+
+    /**
+     * @notice Appoint or remove a Sindh Board of Revenue countersigning officer.
+     * @dev Separation of duties: an active KDA Sub-Registrar can never also be a revenue countersigner.
+     */
+    function setRevenueOfficer(address _officer, bool _isActive) external onlySuperAdmin {
+        require(_officer != address(0), "ZameenChain: Invalid officer address");
+        if (_isActive) {
+            require(
+                !registrarOfficers[_officer].isActive,
+                "ZameenChain: Separation of duties - Sub-Registrar cannot be a revenue countersigner"
+            );
+        }
+        revenueOfficers[_officer] = _isActive;
+        emit RevenueOfficerUpdated(_officer, _isActive);
     }
 
     /**
@@ -175,6 +230,10 @@ contract ZameenChain {
     ) external onlyRegistrar {
         require(_officerAddress != address(0), "ZameenChain: Invalid officer address");
         require(!registrarOfficers[_officerAddress].isActive, "ZameenChain: Officer already registered and active");
+        require(
+            !revenueOfficers[_officerAddress],
+            "ZameenChain: Separation of duties - revenue countersigner cannot be a Sub-Registrar"
+        );
 
         registrarOfficers[_officerAddress] = RegistrarOfficer({
             officerAddress: _officerAddress,
@@ -316,10 +375,43 @@ contract ZameenChain {
     }
 
     /**
-     * @notice KDA Registrar reviews documents and confirms legal title transfer.
-     * Releases locked escrow funds to the seller and updates ownership to the buyer.
+     * @notice SIGNATURE 1 of 2 (Maker) — KDA Sub-Registrar verifies biometric clearance,
+     * tax challans & non-encumbrance, then endorses the transfer. No funds move at this stage.
      */
-    function approveAndCompleteTransfer(uint256 _plotId, string memory _newDeedIpfsHash) external plotExists(_plotId) onlyRegistrar whenNotFrozen {
+    function endorseTransfer(uint256 _plotId, string memory _newDeedIpfsHash) external plotExists(_plotId) whenNotFrozen {
+        require(registrarOfficers[msg.sender].isActive, "ZameenChain: Caller is not the authorized KDA Registrar");
+        require(
+            !isRevenueAuthority(msg.sender),
+            "ZameenChain: Separation of duties - Board of Revenue cannot endorse as Sub-Registrar"
+        );
+
+        LandPlot storage plot = plots[_plotId];
+        require(plot.status == PlotStatus.ESCROW_PENDING, "ZameenChain: No pending escrow deal for this plot");
+        require(!plot.isDisputed, "ZameenChain: Cannot transfer disputed property");
+
+        EscrowDeal storage deal = escrowDeals[_plotId];
+        require(deal.isActive, "ZameenChain: Escrow is not active");
+        require(
+            msg.sender != plot.currentOwner && msg.sender != deal.buyer,
+            "ZameenChain: Conflict of interest - party to the sale cannot sign"
+        );
+        require(!transferApprovals[_plotId].isEndorsed, "ZameenChain: Transfer already endorsed");
+
+        transferApprovals[_plotId] = TransferApproval({
+            endorsedBy: msg.sender,
+            endorsedAt: block.timestamp,
+            newDeedIpfsHash: _newDeedIpfsHash,
+            isEndorsed: true
+        });
+
+        emit TransferEndorsed(_plotId, msg.sender, _newDeedIpfsHash);
+    }
+
+    /**
+     * @notice SIGNATURE 2 of 2 (Checker) — Sindh Board of Revenue authority countersigns.
+     * Only now is legal title transferred and escrow released to the seller (atomic settlement).
+     */
+    function countersignTransfer(uint256 _plotId) external plotExists(_plotId) onlyRevenueAuthority whenNotFrozen {
         LandPlot storage plot = plots[_plotId];
         require(plot.status == PlotStatus.ESCROW_PENDING, "ZameenChain: No pending escrow deal for this plot");
         require(!plot.isDisputed, "ZameenChain: Cannot transfer disputed property");
@@ -327,21 +419,32 @@ contract ZameenChain {
         EscrowDeal storage deal = escrowDeals[_plotId];
         require(deal.isActive, "ZameenChain: Escrow is not active");
 
+        TransferApproval storage approval = transferApprovals[_plotId];
+        require(approval.isEndorsed, "ZameenChain: Awaiting KDA Sub-Registrar endorsement (signature 1 of 2)");
+        require(msg.sender != approval.endorsedBy, "ZameenChain: Dual control - endorser cannot countersign");
+        require(
+            msg.sender != plot.currentOwner && msg.sender != deal.buyer,
+            "ZameenChain: Conflict of interest - party to the sale cannot sign"
+        );
+
         address payable previousOwner = plot.currentOwner;
         address payable newOwner = deal.buyer;
         uint256 salePrice = deal.amount;
+        address endorser = approval.endorsedBy;
+        string memory newDeedHash = approval.newDeedIpfsHash;
 
-        // Reset escrow status before external call (CEI pattern)
+        // Reset escrow & approval before external call (CEI pattern)
         deal.isActive = false;
         deal.amount = 0;
         deal.buyer = payable(address(0));
+        delete transferApprovals[_plotId];
 
         // Update plot state before external call
         plot.currentOwner = newOwner;
         plot.price = 0;
         plot.status = PlotStatus.REGISTERED;
-        if (bytes(_newDeedIpfsHash).length > 0) {
-            plot.ipfsDeedHash = _newDeedIpfsHash;
+        if (bytes(newDeedHash).length > 0) {
+            plot.ipfsDeedHash = newDeedHash;
         }
 
         // Record in permanent audit trail
@@ -350,14 +453,25 @@ contract ZameenChain {
             to: newOwner,
             timestamp: block.timestamp,
             price: salePrice,
-            reason: "Verified Blockchain Sale & Transfer"
+            reason: "Dual-Signature Transfer (KDA Endorsed + Board of Revenue Countersigned)"
         }));
 
         // Transfer funds safely to seller
         (bool sent, ) = previousOwner.call{value: salePrice}("");
         require(sent, "ZameenChain: Failed to release funds to seller");
 
+        emit TransferCountersigned(_plotId, endorser, msg.sender);
         emit OwnershipTransferred(_plotId, previousOwner, newOwner, salePrice);
+    }
+
+    /**
+     * @dev Clears any pending endorsement when the underlying deal is cancelled or frozen.
+     */
+    function _revokeEndorsement(uint256 _plotId, string memory _reason) private {
+        if (transferApprovals[_plotId].isEndorsed) {
+            delete transferApprovals[_plotId];
+            emit TransferEndorsementRevoked(_plotId, _reason);
+        }
     }
 
     /**
@@ -383,6 +497,7 @@ contract ZameenChain {
         deal.isActive = false;
         deal.amount = 0;
         deal.buyer = payable(address(0));
+        _revokeEndorsement(_plotId, "Escrow cancelled");
 
         // Restore status cleanly depending on dispute flag
         plot.status = plot.isDisputed ? PlotStatus.DISPUTED : PlotStatus.LISTED_FOR_SALE;
@@ -404,6 +519,7 @@ contract ZameenChain {
 
         // Protect innocent buyer if an escrow was active when the court stay order arrived
         EscrowDeal storage deal = escrowDeals[_plotId];
+        _revokeEndorsement(_plotId, "Court stay order");
         if (deal.isActive) {
             address payable buyerToRefund = deal.buyer;
             uint256 refundAmount = deal.amount;
@@ -478,5 +594,17 @@ contract ZameenChain {
             deals[i - 1] = escrowDeals[i];
         }
         return deals;
+    }
+
+    /**
+     * @notice Retrieve all pending dual-signature approvals aligned by plot index (plotId = index + 1).
+     */
+    function getAllTransferApprovals() external view returns (TransferApproval[] memory) {
+        uint256 total = nextPlotId - 1;
+        TransferApproval[] memory approvals = new TransferApproval[](total);
+        for (uint256 i = 1; i <= total; i++) {
+            approvals[i - 1] = transferApprovals[i];
+        }
+        return approvals;
     }
 }
