@@ -84,40 +84,40 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
       : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#030711]/85 backdrop-blur-md animate-fadeIn">
-      <div className="bg-[#0b1322] border border-white/10 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-[#030711]/85 backdrop-blur-md animate-fadeIn">
+      <div className="bg-[#0b1322] border border-white/10 w-full max-w-lg rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl max-h-[92dvh] flex flex-col">
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-white/[0.08] bg-[#070c16] flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="p-4 sm:p-6 border-b border-white/[0.08] bg-[#070c16] flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             {type === 'LIST_PLOT' && (
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
                 <Tag className="w-5 h-5" />
               </div>
             )}
             {type === 'DEPOSIT_ESCROW' && (
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
                 <Lock className="w-5 h-5" />
               </div>
             )}
             {type === 'FLAG_DISPUTE' && (
-              <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
                 <Scale className="w-5 h-5" />
               </div>
             )}
             {type === 'CANCEL_ESCROW' && (
-              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
                 <RotateCcw className="w-5 h-5" />
               </div>
             )}
 
-            <div>
-              <h3 className="text-base sm:text-lg font-extrabold text-white">
-                {type === 'LIST_PLOT' && 'List Property on Cadastral Marketplace'}
-                {type === 'DEPOSIT_ESCROW' && 'Atomic Smart Contract Escrow Vault'}
-                {type === 'FLAG_DISPUTE' && 'Enforce Judicial Stay Order'}
-                {type === 'CANCEL_ESCROW' && 'Cancel Escrow & Claim Instant Refund'}
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-lg font-extrabold text-white truncate">
+                {type === 'LIST_PLOT' && 'List Property for Sale'}
+                {type === 'DEPOSIT_ESCROW' && 'Atomic Escrow Vault'}
+                {type === 'FLAG_DISPUTE' && 'Enforce Court Stay Order'}
+                {type === 'CANCEL_ESCROW' && 'Cancel Escrow & Refund'}
               </h3>
-              <p className="text-xs text-slate-400 font-mono">
+              <p className="text-[11px] sm:text-xs text-slate-400 font-mono truncate">
                 {plot?.kdaPlotNumber} • {plot?.schemeName}
               </p>
             </div>
@@ -126,14 +126,14 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleConfirm} className="p-6 space-y-5 text-xs">
+        {/* Scrollable Form Body */}
+        <form onSubmit={handleConfirm} className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 text-xs">
           {localError && (
             <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-200 flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
@@ -144,10 +144,10 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
           {/* 1. LIST PLOT FOR SALE */}
           {type === 'LIST_PLOT' && (
             <>
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/[0.06] grid grid-cols-2 gap-3">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/80 border border-white/[0.06] grid grid-cols-2 gap-3">
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-semibold">Cadastral Size</span>
-                  <span className="text-white font-bold text-sm">{plot.squareYards} Sq. Yards</span>
+                  <span className="text-white font-bold text-sm">{plot.squareYards} Sq. Yds</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-semibold">Zoning Category</span>
@@ -156,15 +156,15 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <label className="font-semibold text-slate-200">Asking Price (ETH) *</label>
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {['1.5', '3.0', '5.0', '10.0'].map((preset) => (
                       <button
                         key={preset}
                         type="button"
                         onClick={() => setPriceEth(preset)}
-                        className={`px-2 py-0.5 rounded-md font-mono text-[10px] transition cursor-pointer ${
+                        className={`px-2 py-1 rounded-md font-mono text-[10px] transition cursor-pointer ${
                           priceEth === preset
                             ? 'bg-emerald-500 text-slate-950 font-bold'
                             : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -180,10 +180,10 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
                   <Coins className="w-4 h-4 text-emerald-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="number"
+                    inputMode="decimal"
                     step="0.01"
                     min="0.01"
                     required
-                    autoFocus
                     value={priceEth}
                     onChange={(e) => setPriceEth(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl pl-10 pr-16 py-3 text-base font-mono font-bold text-white focus:outline-none"
@@ -194,15 +194,15 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-emerald-950/25 border border-emerald-500/30 space-y-1.5">
-                <div className="flex items-center justify-between">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-950/25 border border-emerald-500/30 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-slate-300">Estimated PKR Valuation:</span>
                   <span className="font-bold text-emerald-300 text-sm">
                     {formatPkrFromEth(parsedEthInput)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Implied Rate per Sq. Yard:</span>
+                <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                  <span>Rate per Sq. Yard:</span>
                   <span className="font-mono text-slate-200">
                     PKR {perSqYdPkr.toLocaleString('en-PK')} / Sq. Yd
                   </span>
@@ -214,8 +214,8 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
           {/* 2. DEPOSIT ATOMIC ESCROW */}
           {type === 'DEPOSIT_ESCROW' && plot && taxes && (
             <>
-              <div className="p-4 rounded-2xl bg-slate-950/90 border border-cyan-500/30 space-y-2.5">
-                <div className="flex items-center justify-between">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/90 border border-cyan-500/30 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-slate-400">Escrow Lock Amount:</span>
                   <div className="text-right">
                     <span className="font-mono font-black text-base text-cyan-300 block">
@@ -228,16 +228,16 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
                 </div>
 
                 <div className="pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
-                  <div className="flex justify-between text-slate-400">
-                    <span>Seller (Current Title Holder):</span>
-                    <span className="font-mono text-slate-200">{shortenAddress(plot.currentOwner, 8, 6)}</span>
+                  <div className="flex justify-between gap-2 text-slate-400">
+                    <span>Seller Wallet:</span>
+                    <span className="font-mono text-slate-200">{shortenAddress(plot.currentOwner, 6, 4)}</span>
                   </div>
-                  <div className="flex justify-between text-slate-400">
-                    <span>Sindh Stamp Duty (2% Statutory Ref):</span>
+                  <div className="flex justify-between gap-2 text-slate-400">
+                    <span>Sindh Stamp Duty (2%):</span>
                     <span className="font-mono text-slate-300">{taxes.formatCurrency(taxes.stampDutyPkr)}</span>
                   </div>
-                  <div className="flex justify-between text-slate-400">
-                    <span>Capital Value Tax (1% CVT Ref):</span>
+                  <div className="flex justify-between gap-2 text-slate-400">
+                    <span>Capital Value Tax (1%):</span>
                     <span className="font-mono text-slate-300">{taxes.formatCurrency(taxes.cvtPkr)}</span>
                   </div>
                 </div>
@@ -246,7 +246,7 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
               <div className="p-3.5 rounded-2xl bg-cyan-950/30 border border-cyan-500/30 flex items-start gap-2.5 text-[11px] text-cyan-100 leading-relaxed">
                 <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                 <span>
-                  <strong>Zero Advance-Token Risk:</strong> Funds remain cryptographically locked inside the ZameenChain Vault. Seller receives 0 ETH until a KDA Sub-Registrar verifies clearance and transfers the Sanad to your wallet. You may cancel for a 100% refund anytime prior to stamping.
+                  <strong>Zero Advance-Token Risk:</strong> Funds remain locked inside ZameenChain Vault until a KDA Sub-Registrar transfers the Sanad to your wallet. Cancel anytime prior to stamping for a 100% refund.
                 </span>
               </div>
             </>
@@ -257,7 +257,7 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
             <>
               {Number(plot.status) === 2 && (
                 <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-[11px]">
-                  <strong>Automatic Buyer Protection:</strong> This parcel currently has an active buyer escrow. Enforcing this Stay Order will automatically refund 100% of locked ETH back to the buyer before freezing the title.
+                  <strong>Automatic Buyer Protection:</strong> Enforcing this Stay Order will automatically refund 100% of locked ETH back to the buyer before freezing the title.
                 </div>
               )}
 
@@ -304,7 +304,7 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
             <div className="p-4 rounded-2xl bg-slate-950 border border-amber-500/30 space-y-2 text-slate-300 leading-relaxed">
               <p>
                 Are you sure you want to cancel the active escrow deal for{' '}
-                <strong className="text-white font-mono">{plot.kdaPlotNumber}</strong>?
+                <strong className="text-white font-mono break-all">{plot.kdaPlotNumber}</strong>?
               </p>
               <p className="text-amber-300 font-semibold">
                 Full locked deposit ({formatEth(plot.escrowAmount || plot.price)}) will be immediately refunded to the buyer wallet.
@@ -313,12 +313,12 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
           )}
 
           {/* Modal Buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/[0.08]">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-2.5 pt-3 border-t border-white/[0.08]">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition cursor-pointer text-center"
             >
               Cancel
             </button>
@@ -326,7 +326,7 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
             <button
               type="submit"
               disabled={submitting}
-              className={`px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition shadow-lg cursor-pointer ${
+              className={`px-5 py-3 sm:py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition shadow-lg cursor-pointer ${
                 type === 'FLAG_DISPUTE'
                   ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/25'
                   : type === 'DEPOSIT_ESCROW'
@@ -337,9 +337,9 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
               }`}
             >
               {submitting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
               ) : (
-                <CheckCircle2 className="w-4 h-4" />
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
               )}
               <span>
                 {type === 'LIST_PLOT' && 'Sign & List on Blockchain'}
@@ -347,7 +347,7 @@ export default function ActionModal({ modalState, onClose, onConfirm }) {
                 {type === 'FLAG_DISPUTE' && 'Freeze Title On-Chain'}
                 {type === 'CANCEL_ESCROW' && 'Confirm & Refund ETH'}
               </span>
-              {!submitting && <ArrowRight className="w-3.5 h-3.5" />}
+              {!submitting && <ArrowRight className="w-3.5 h-3.5 shrink-0" />}
             </button>
           </div>
         </form>

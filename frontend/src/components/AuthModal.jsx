@@ -158,46 +158,46 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
-      <div className="bg-[#0b1322] border border-white/10 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl max-h-[94vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
+      <div className="bg-[#0b1322] border border-white/10 w-full max-w-lg rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl max-h-[92dvh] flex flex-col">
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-white/[0.08] bg-[#060b14] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 shadow-lg shadow-emerald-500/20">
+        <div className="p-4 sm:p-6 border-b border-white/[0.08] bg-[#060b14] flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 shadow-lg shadow-emerald-500/20 shrink-0">
               <Shield className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-black text-white">
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-lg font-black text-white truncate">
                 ZameenChain Identity Gateway
               </h3>
-              <p className="text-xs text-slate-400">
-                Government of Sindh • Cryptographic Citizen & Officer Access
+              <p className="text-[11px] sm:text-xs text-slate-400 truncate">
+                Govt. of Sindh • Citizen & Officer Access
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
 
         {/* Scrollable Body */}
-        <div className="p-6 overflow-y-auto space-y-5">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5">
           {/* SCREEN 1: PENDING REGISTRAR CLEARANCE */}
           {pendingRegistrarInfo ? (
-            <div className="p-2 text-center space-y-5 animate-fadeIn">
-              <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto">
-                <Clock className="w-8 h-8 animate-pulse" />
+            <div className="p-1 sm:p-2 text-center space-y-5 animate-fadeIn">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto">
+                <Clock className="w-7 h-7 sm:w-8 sm:h-8 animate-pulse" />
               </div>
 
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-950/60 border border-amber-800/60 px-3 py-1 rounded-full">
-                  Application Queued for Executive Clearance
+                <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-950/60 border border-amber-800/60 px-3 py-1 rounded-full">
+                  Application Queued for Clearance
                 </span>
-                <h3 className="text-xl font-black text-white mt-3 mb-1">
+                <h3 className="text-lg sm:text-xl font-black text-white mt-3 mb-1">
                   Sub-Registrar Vetting Required
                 </h3>
                 <p className="text-xs text-slate-300 max-w-sm mx-auto leading-relaxed">
@@ -205,22 +205,22 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 </p>
               </div>
 
-              <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl text-left text-xs space-y-2 font-mono">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Officer Name:</span>
-                  <span className="text-slate-100 font-bold font-sans">
+              <div className="bg-slate-950 border border-slate-800 p-3.5 sm:p-4 rounded-2xl text-left text-xs space-y-2 font-mono">
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-400 shrink-0">Officer Name:</span>
+                  <span className="text-slate-100 font-bold font-sans text-right truncate">
                     {pendingRegistrarInfo.name}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Badge ID:</span>
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-400 shrink-0">Badge ID:</span>
                   <span className="text-teal-400 font-bold">
                     {pendingRegistrarInfo.badgeNumber || 'KDA-APPLICANT'}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Verified Email:</span>
-                  <span className="text-emerald-400">{pendingRegistrarInfo.email}</span>
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-400 shrink-0">Verified Email:</span>
+                  <span className="text-emerald-400 truncate">{pendingRegistrarInfo.email}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-slate-800">
                   <span className="text-slate-400">Status:</span>
@@ -249,14 +249,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center mx-auto">
                   <MailCheck className="w-7 h-7" />
                 </div>
-                <h3 className="text-xl font-bold text-white">Verify Official Email</h3>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                <h3 className="text-lg sm:text-xl font-bold text-white">Verify Official Email</h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto break-all">
                   Enter the 6-digit one-time passcode dispatched to{' '}
                   <strong className="text-cyan-300 font-mono">{email}</strong>
                 </p>
 
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> OTP Dispatched (Check Inbox / Spam)
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> OTP Dispatched
                 </span>
               </div>
 
@@ -270,6 +270,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               <form onSubmit={handleVerifyOtpAndRegister} className="space-y-4">
                 <input
                   type="text"
+                  data-otp="true"
+                  inputMode="numeric"
                   maxLength={6}
                   required
                   autoFocus
@@ -296,7 +298,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                     setIsVerifyingOtp(false);
                     setErrorMsg('');
                   }}
-                  className="hover:text-white cursor-pointer"
+                  className="hover:text-white cursor-pointer py-1"
                 >
                   ← Modify Details
                 </button>
@@ -305,7 +307,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                   type="button"
                   onClick={handleResendCode}
                   disabled={resendCooldown > 0 || isSubmitting}
-                  className={`flex items-center gap-1.5 font-medium ${
+                  className={`flex items-center gap-1.5 font-medium py-1 ${
                     resendCooldown > 0
                       ? 'text-slate-600 cursor-not-allowed'
                       : 'text-teal-400 hover:text-teal-300 cursor-pointer'
@@ -318,7 +320,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 </button>
               </div>
 
-              {/* Subtle Demo Fallback if email delivery is delayed */}
               <div className="text-center pt-1">
                 {!showDemoOtpFallback ? (
                   <button
@@ -386,51 +387,51 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+              <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4 text-xs">
                 {mode === 'signup' && (
                   <div className="space-y-2">
                     <label className="text-slate-300 block font-bold">Select Account Role:</label>
-                    <div className="grid grid-cols-3 gap-2.5">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => setSelectedRole('BUYER')}
-                        className={`p-3 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                        className={`p-2.5 sm:p-3 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                           selectedRole === 'BUYER'
                             ? 'bg-cyan-950/70 border-cyan-400 text-cyan-300'
                             : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                         }`}
                       >
                         <ShoppingBag className="w-4 h-4" />
-                        <span className="font-bold">Buyer</span>
-                        <span className="text-[10px] text-slate-500">Investor</span>
+                        <span className="font-bold text-[11px] sm:text-xs">Buyer</span>
+                        <span className="text-[9px] sm:text-[10px] text-slate-500">Investor</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setSelectedRole('SELLER')}
-                        className={`p-3 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                        className={`p-2.5 sm:p-3 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                           selectedRole === 'SELLER'
                             ? 'bg-emerald-950/70 border-emerald-400 text-emerald-300'
                             : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                         }`}
                       >
                         <Home className="w-4 h-4" />
-                        <span className="font-bold">Owner</span>
-                        <span className="text-[10px] text-slate-500">Title Holder</span>
+                        <span className="font-bold text-[11px] sm:text-xs">Owner</span>
+                        <span className="text-[9px] sm:text-[10px] text-slate-500">Title Holder</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setSelectedRole('REGISTRAR')}
-                        className={`p-3 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                        className={`p-2.5 sm:p-3 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                           selectedRole === 'REGISTRAR'
                             ? 'bg-amber-950/70 border-amber-400 text-amber-300'
                             : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                         }`}
                       >
                         <ShieldCheck className="w-4 h-4" />
-                        <span className="font-bold">Registrar</span>
-                        <span className="text-[10px] text-slate-500">KDA Officer</span>
+                        <span className="font-bold text-[11px] sm:text-xs">Registrar</span>
+                        <span className="text-[9px] sm:text-[10px] text-slate-500">KDA Officer</span>
                       </button>
                     </div>
                   </div>
@@ -568,10 +569,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
               {/* 1-Click Verified Role Presets on Login Tab */}
               {mode === 'login' && (
-                <div className="pt-4 border-t border-white/[0.08] space-y-2.5">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    <Zap className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Instant Verified Role Access (1-Click Sign In)</span>
+                <div className="pt-3.5 sm:pt-4 border-t border-white/[0.08] space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>Instant Verified Role Access (1-Click)</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {QUICK_DEMO_ACCOUNTS.map((acct) => (
@@ -598,13 +599,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/[0.08] bg-[#060b14] flex items-center justify-between text-xs text-slate-400 shrink-0">
-          <span>Public Title Search requires no login</span>
+        <div className="p-3.5 sm:p-4 border-t border-white/[0.08] bg-[#060b14] flex items-center justify-between gap-2 text-[11px] sm:text-xs text-slate-400 shrink-0">
+          <span className="truncate">Public search needs no login</span>
           <button
             onClick={onClose}
-            className="text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer"
+            className="text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer whitespace-nowrap shrink-0"
           >
-            Continue as Public Citizen →
+            Public Mode →
           </button>
         </div>
       </div>

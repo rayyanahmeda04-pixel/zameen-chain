@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import {
-  ShieldAlert,
   ShieldCheck,
   Lock,
   KeyRound,
@@ -69,7 +68,6 @@ export default function RegistrarPanel({
   onCancelEscrow,
   officers = []
 }) {
-  // Both active REGISTRAR and Chief ADMIN possess cryptographic registrar privileges on-chain
   const isAuthorized =
     (activeRole?.role === 'REGISTRAR' &&
       (activeRole?.status === 'ACTIVE' || !activeRole?.status)) ||
@@ -77,7 +75,8 @@ export default function RegistrarPanel({
   const isPending =
     activeRole?.role === 'REGISTRAR' && activeRole?.status === 'PENDING_APPROVAL';
 
-  const [panelSection, setPanelSection] = useState('mint'); // 'mint', 'escrows', 'officers'
+  const [panelSection, setPanelSection] = useState('mint');
+  const [presetSeq, setPresetSeq] = useState(188);
 
   const [formData, setFormData] = useState({
     kdaPlotNumber: 'KDA-SCH33-SEC05-P88',
@@ -104,7 +103,6 @@ export default function RegistrarPanel({
 
   const escrowPlots = plots.filter((p) => Number(p.status) === 2);
 
-  // Deduplicate accredited officers by lowercase address
   const uniqueOfficers = useMemo(() => {
     const map = new Map();
     map.set('0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266', {
@@ -115,21 +113,25 @@ export default function RegistrarPanel({
       isLead: true
     });
     officers.forEach((o) => {
-      if (o?.address && !map.has(o.address.toLowerCase())) {
-        map.set(o.address.toLowerCase(), o);
+      if (o?.address) {
+        const key = o.address.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, { ...o, isLead: false });
+        }
       }
     });
     return Array.from(map.values());
   }, [officers]);
 
   const applySchemePreset = (preset) => {
-    const randNum = Math.floor(105 + Math.random() * 790);
+    const nextNum = presetSeq + 7;
+    setPresetSeq(nextNum);
     setFormData((prev) => ({
       ...prev,
-      kdaPlotNumber: `${preset.prefix}${randNum}`,
+      kdaPlotNumber: `${preset.prefix}${nextNum}`,
       schemeName: preset.schemeName,
       sector: preset.sector,
-      plotNumber: String(randNum),
+      plotNumber: String(nextNum),
       latitude: preset.lat,
       longitude: preset.lon
     }));
@@ -140,34 +142,29 @@ export default function RegistrarPanel({
     setErrorMsg('');
     setSuccessMsg('');
 
-    const cleanId = formData.kdaPlotNumber.trim().toUpperCase();
-    const isDuplicate = plots.some((p) => p.kdaPlotNumber.toUpperCase() === cleanId);
-
-    if (isDuplicate) {
+    const duplicate = plots.some(
+      (p) => p.kdaPlotNumber.toUpperCase() === formData.kdaPlotNumber.trim().toUpperCase()
+    );
+    if (duplicate) {
       setErrorMsg(
-        `Duplicate Allotment Blocked: KDA Plot ID "${cleanId}" is already registered on-chain. Forged / double allotment rejected.`
+        `ANTI-FRAUD REJECTION: Allotment ID "${formData.kdaPlotNumber}" already exists in the Karachi Cadastre. Duplicate minting blocked.`
       );
       return;
     }
 
     try {
-      await onRegisterPlot({
-        ...formData,
-        kdaPlotNumber: cleanId,
-        plotNumber: Number(formData.plotNumber),
-        squareYards: Number(formData.squareYards)
-      });
+      await onRegisterPlot(formData);
       setSuccessMsg(
-        `Primary Land Title "${cleanId}" successfully minted into the sovereign cadastre.`
+        `Plot ${formData.kdaPlotNumber.trim().toUpperCase()} minted and anchored on-chain!`
       );
       const nextNum = Number(formData.plotNumber || 100) + 1;
       setFormData((prev) => ({
         ...prev,
-        kdaPlotNumber: prev.kdaPlotNumber.replace(/\d+$/, String(nextNum)),
-        plotNumber: String(nextNum)
+        plotNumber: String(nextNum),
+        kdaPlotNumber: prev.kdaPlotNumber.replace(/\d+$/, String(nextNum))
       }));
     } catch (err) {
-      setErrorMsg(err.reason || err.message || 'Plot minting failed.');
+      setErrorMsg(err.reason || err.message || 'Plot registration failed.');
     }
   };
 
@@ -175,87 +172,59 @@ export default function RegistrarPanel({
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
-
     try {
       await onRegisterOfficer(officerForm);
-      setSuccessMsg(
-        `Sub-Registrar ${officerForm.name} (${officerForm.badgeNumber}) accredited on-chain.`
-      );
-      setOfficerForm((prev) => ({
-        ...prev,
-        badgeNumber: `KDA-SR-0${Math.floor(Math.random() * 80 + 15)}`
-      }));
+      setSuccessMsg(`Sub-Registrar ${officerForm.name} accredited on ZameenChain!`);
     } catch (err) {
       setErrorMsg(err.reason || err.message || 'Officer accreditation failed.');
     }
   };
 
-  // PENDING CLEARANCE SCREEN
   if (isPending) {
     return (
-      <div className="bg-slate-900/90 border border-amber-500/40 rounded-3xl p-8 md:p-12 text-center max-w-2xl mx-auto shadow-2xl animate-fadeIn">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center">
-          <ShieldAlert className="w-10 h-10 animate-pulse" />
+      <div className="bg-slate-900/90 border border-amber-800/70 rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-12 text-center max-w-2xl mx-auto shadow-2xl animate-fadeIn">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-5 sm:mb-6 rounded-2xl sm:rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+          <Lock className="w-8 h-8 sm:w-10 sm:h-10 animate-pulse" />
         </div>
-
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-950/60 border border-amber-800/60 px-3.5 py-1 rounded-full">
-          Accreditation Clearance Pending
+        <span className="inline-block text-[10px] sm:text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-950/60 border border-amber-800/60 px-3.5 py-1 rounded-full">
+          Security Vetting in Progress
         </span>
-
-        <h3 className="text-2xl font-black text-slate-100 mt-4 mb-2">
-          Sub-Registrar Credentials Under Executive Vetting
+        <h3 className="text-xl sm:text-2xl font-black text-slate-100 mt-4 mb-2">
+          Awaiting Chief Administrator Clearance
         </h3>
-
-        <p className="text-sm text-slate-300 mb-6 leading-relaxed">
-          Your Sub-Registrar application has been verified and queued for final background clearance by the{' '}
-          <span className="text-amber-400 font-bold">Chief Administrator (Ministry of Revenue)</span>.
+        <p className="text-xs sm:text-sm text-slate-400 mb-6 leading-relaxed">
+          Your Sub-Registrar application for <strong>{activeRole.name}</strong> has been logged. Primary plot minting and escrow certification activate once accredited by the Chief Administrator.
         </p>
-
-        <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left text-xs mb-6 space-y-2 font-mono">
-          <div className="flex justify-between text-slate-400">
-            <span>Applicant Officer:</span>
-            <span className="text-slate-100 font-bold font-sans">{activeRole?.name}</span>
-          </div>
-          <div className="flex justify-between text-slate-400">
-            <span>Clearance Status:</span>
-            <span className="text-amber-400 font-bold">PENDING_APPROVAL</span>
-          </div>
-          <div className="flex justify-between text-slate-400">
-            <span>Approving Authority:</span>
-            <span className="text-slate-200 font-sans">Secretary / Chief Administrator, Board of Revenue</span>
-          </div>
-        </div>
       </div>
     );
   }
 
-  // RESTRICTED ACCESS SCREEN
   if (!isAuthorized) {
     return (
-      <div className="bg-slate-900/90 border border-white/[0.08] rounded-3xl p-8 md:p-12 text-center max-w-2xl mx-auto shadow-2xl animate-fadeIn">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center">
-          <Lock className="w-10 h-10" />
+      <div className="bg-slate-900/90 border border-white/[0.08] rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-12 text-center max-w-2xl mx-auto shadow-2xl animate-fadeIn">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-5 sm:mb-6 rounded-2xl sm:rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+          <Lock className="w-8 h-8 sm:w-10 sm:h-10" />
         </div>
 
-        <span className="text-xs font-bold uppercase tracking-widest text-rose-400 bg-rose-950/60 border border-rose-800/60 px-3.5 py-1 rounded-full">
-          Restricted Sovereign Intranet
+        <span className="inline-block text-[10px] sm:text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-950/60 border border-amber-800/60 px-3.5 py-1 rounded-full">
+          Restricted Sovereign Terminal
         </span>
 
-        <h3 className="text-2xl font-black text-slate-100 mt-4 mb-2">
-          Authorized KDA Registrar Clearance Required
+        <h3 className="text-xl sm:text-2xl font-black text-slate-100 mt-4 mb-2">
+          KDA Sub-Registrar Authorization Required
         </h3>
 
-        <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-          Primary land title minting, sub-registrar accreditation, and atomic escrow deed stamping are cryptographically restricted to accredited{' '}
+        <p className="text-xs sm:text-sm text-slate-400 mb-6 leading-relaxed">
+          Primary land title minting, judicial stay order enforcement, and atomic escrow deed stamping require cryptographic signing keys issued to accredited{' '}
           <span className="text-slate-200 font-semibold">Karachi Development Authority (KDA)</span> officers.
         </p>
 
         <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left text-xs mb-6 space-y-2 font-mono">
-          <div className="flex justify-between text-slate-400">
+          <div className="flex justify-between gap-2 text-slate-400">
             <span>Active Session Wallet:</span>
-            <span className="text-slate-300">{shortenAddress(activeRole?.address, 10, 6)}</span>
+            <span className="text-slate-300">{shortenAddress(activeRole?.address, 8, 6)}</span>
           </div>
-          <div className="flex justify-between text-slate-400">
+          <div className="flex justify-between gap-2 text-slate-400">
             <span>Current Clearance Tier:</span>
             <span className="text-amber-400 font-semibold">{activeRole?.role || 'PUBLIC_CITIZEN'}</span>
           </div>
@@ -273,29 +242,29 @@ export default function RegistrarPanel({
   }
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="space-y-6 sm:space-y-8 animate-fadeIn">
       {/* Registrar Header */}
-      <div className="bg-gradient-to-r from-[#0b1626] via-teal-950/35 to-[#08101c] border border-teal-500/40 p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-4">
-          <div className="p-3.5 rounded-2xl bg-teal-500/15 text-teal-300 border border-teal-500/30">
-            <ShieldCheck className="w-7 h-7" />
+      <div className="bg-gradient-to-r from-[#0b1626] via-teal-950/35 to-[#08101c] border border-teal-500/40 p-5 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-center gap-3.5 sm:gap-4">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-teal-500/15 text-teal-300 border border-teal-500/30 shrink-0">
+            <ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-black text-white text-base sm:text-lg">
-                KDA Sub-Registrar Cadastral Terminal
+                KDA Sub-Registrar Terminal
               </h3>
-              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                CRYPTOGRAPHIC SIGNER ACTIVE
+              <span className="text-[9px] sm:text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">
+                SIGNER ACTIVE
               </span>
             </div>
             <p className="text-xs text-slate-300 mt-0.5">
-              Directorate of Land Management • Allotment Minting, Deed Stamping & Officer Roster
+              Directorate of Land Management • Minting, Deed Stamping & Officer Roster
             </p>
           </div>
         </div>
 
-        <div className="text-left md:text-right text-xs font-mono bg-slate-950/70 px-4 py-2.5 rounded-2xl border border-white/[0.08]">
+        <div className="text-left md:text-right text-xs font-mono bg-slate-950/70 px-3.5 py-2.5 rounded-2xl border border-white/[0.08] shrink-0">
           <span className="text-slate-400 block text-[10px] uppercase">Authorized Signing Key:</span>
           <span className="text-teal-300 font-bold">
             {shortenAddress(activeRole.address, 8, 6)}
@@ -304,40 +273,40 @@ export default function RegistrarPanel({
       </div>
 
       {/* Sub-Navigation */}
-      <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-slate-900/60 border border-white/[0.08]">
+      <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 rounded-2xl bg-slate-900/60 border border-white/[0.08] overflow-x-auto no-scrollbar">
         <button
           onClick={() => setPanelSection('mint')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
             panelSection === 'mint'
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md'
               : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
           }`}
         >
-          <PlusCircle className="w-4 h-4" />
-          <span>Primary Plot Allotment</span>
+          <PlusCircle className="w-4 h-4 shrink-0" />
+          <span>Primary Allotment</span>
         </button>
 
         <button
           onClick={() => setPanelSection('escrows')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
             panelSection === 'escrows'
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md'
               : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
           }`}
         >
-          <FileCheck className="w-4 h-4" />
-          <span>Pending Escrow Stamping ({escrowPlots.length})</span>
+          <FileCheck className="w-4 h-4 shrink-0" />
+          <span>Escrow Stamping ({escrowPlots.length})</span>
         </button>
 
         <button
           onClick={() => setPanelSection('officers')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
             panelSection === 'officers'
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md'
               : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
           }`}
         >
-          <Users className="w-4 h-4" />
+          <Users className="w-4 h-4 shrink-0" />
           <span>Accredited Officers ({uniqueOfficers.length})</span>
         </button>
       </div>
@@ -359,29 +328,29 @@ export default function RegistrarPanel({
 
       {/* 1. PRIMARY PLOT ALLOTMENT */}
       {panelSection === 'mint' && (
-        <div className="bg-slate-900/85 border border-white/[0.08] p-6 md:p-8 rounded-3xl space-y-6">
+        <div className="bg-slate-900/85 border border-white/[0.08] p-5 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
             <div>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <PlusCircle className="w-5 h-5 text-emerald-400" />
-                Mint Primary Cadastral Land Title
+              <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <PlusCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+                <span>Mint Primary Cadastral Land Title</span>
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 Digitize a surveyed parcel into the immutable blockchain cadastre. Duplicate KDA Allotment IDs are automatically rejected.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <span className="text-slate-400 font-semibold flex items-center gap-1 mr-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 text-xs">
+              <span className="text-slate-400 font-semibold flex items-center gap-1 mr-1 shrink-0">
                 <MapPin className="w-3.5 h-3.5 text-teal-400" />
-                Auto-Fill Zone:
+                <span>Preset:</span>
               </span>
               {KARACHI_SCHEME_PRESETS.map((preset) => (
                 <button
                   key={preset.label}
                   type="button"
                   onClick={() => applySchemePreset(preset)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-white/[0.06] text-[11px] font-medium transition cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-white/[0.06] text-[11px] font-medium transition cursor-pointer whitespace-nowrap shrink-0"
                 >
                   {preset.label}
                 </button>
@@ -431,32 +400,36 @@ export default function RegistrarPanel({
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-slate-300 block mb-1.5">
-                  Plot Number *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={formData.plotNumber}
-                  onChange={(e) => setFormData({ ...formData, plotNumber: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-3 md:contents">
+                <div>
+                  <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                    Plot Number *
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    required
+                    value={formData.plotNumber}
+                    onChange={(e) => setFormData({ ...formData, plotNumber: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
+                  />
+                </div>
 
-              <div>
-                <label className="text-xs font-medium text-slate-300 block mb-1.5">
-                  Measured Area (Square Yards) *
-                </label>
-                <input
-                  type="number"
-                  min="40"
-                  required
-                  value={formData.squareYards}
-                  onChange={(e) => setFormData({ ...formData, squareYards: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
-                />
+                <div>
+                  <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                    Area (Sq. Yds) *
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="40"
+                    required
+                    value={formData.squareYards}
+                    onChange={(e) => setFormData({ ...formData, squareYards: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div>
@@ -475,30 +448,32 @@ export default function RegistrarPanel({
                 </select>
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-slate-300 block mb-1.5">
-                  GPS Latitude (°N) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.latitude}
-                  onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-3 md:contents">
+                <div>
+                  <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                    Latitude (°N) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.latitude}
+                    onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
+                  />
+                </div>
 
-              <div>
-                <label className="text-xs font-medium text-slate-300 block mb-1.5">
-                  GPS Longitude (°E) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.longitude}
-                  onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
-                />
+                <div>
+                  <label className="text-xs font-medium text-slate-300 block mb-1.5">
+                    Longitude (°E) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.longitude}
+                    onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div>
@@ -517,10 +492,10 @@ export default function RegistrarPanel({
               <div className="md:col-span-2 lg:col-span-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                   <label className="text-xs font-medium text-slate-300">
-                    Allottee / Citizen Ethereum Wallet Address *
+                    Allottee Citizen Wallet Address *
                   </label>
                   <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                    <span className="text-slate-500">Verified Citizens:</span>
+                    <span className="text-slate-500">Citizens:</span>
                     <button
                       type="button"
                       onClick={() =>
@@ -529,7 +504,7 @@ export default function RegistrarPanel({
                           owner: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
                         })
                       }
-                      className="px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono cursor-pointer"
+                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono cursor-pointer"
                     >
                       Aamir Khan
                     </button>
@@ -541,7 +516,7 @@ export default function RegistrarPanel({
                           owner: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'
                         })
                       }
-                      className="px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono cursor-pointer"
+                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono cursor-pointer"
                     >
                       Bilal Siddiqui
                     </button>
@@ -553,7 +528,7 @@ export default function RegistrarPanel({
                           owner: '0x90F79bf6EB2c4f870365E785982E1f101E93b906'
                         })
                       }
-                      className="px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono cursor-pointer"
+                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-mono cursor-pointer"
                     >
                       Hamza Sheikh
                     </button>
@@ -572,7 +547,7 @@ export default function RegistrarPanel({
             <button
               type="submit"
               disabled={isEmergencyFrozen}
-              className="mt-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 text-slate-950 font-bold text-xs px-7 py-3.5 rounded-xl transition shadow-lg shadow-emerald-500/20 cursor-pointer"
+              className="w-full sm:w-auto mt-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 text-slate-950 font-bold text-xs px-7 py-3.5 rounded-xl transition shadow-lg shadow-emerald-500/20 cursor-pointer"
             >
               Sign & Mint Sovereign Land Title
             </button>
@@ -582,19 +557,19 @@ export default function RegistrarPanel({
 
       {/* 2. PENDING ESCROW STAMPING */}
       {panelSection === 'escrows' && (
-        <div className="bg-slate-900/85 border border-white/[0.08] p-6 md:p-8 rounded-3xl">
-          <div className="flex items-center justify-between mb-5">
+        <div className="bg-slate-900/85 border border-white/[0.08] p-5 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <FileCheck className="w-5 h-5 text-amber-400" />
-                Atomic Escrow Deeds Awaiting Sub-Registrar Certification
+              <h3 className="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-amber-400 shrink-0" />
+                <span>Escrow Deeds Awaiting Certification</span>
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Verify biometric clearance, tax challans, and non-encumbrance before releasing escrow funds to seller and mutating title to buyer.
+                Verify biometric clearance, tax challans, and non-encumbrance before releasing escrow funds.
               </p>
             </div>
             <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">
-              {escrowPlots.length} Awaiting Sign-Off
+              {escrowPlots.length} Awaiting
             </span>
           </div>
 
@@ -607,9 +582,9 @@ export default function RegistrarPanel({
               {escrowPlots.map((plot) => (
                 <div
                   key={plot.id}
-                  className="p-5 rounded-2xl bg-slate-950 border border-amber-500/35 flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                  className="p-4 sm:p-5 rounded-2xl bg-slate-950 border border-amber-500/35 flex flex-col lg:flex-row lg:items-center justify-between gap-4"
                 >
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-mono font-bold text-teal-400 bg-teal-950 px-2.5 py-0.5 rounded border border-teal-800">
                         {plot.kdaPlotNumber}
@@ -620,33 +595,33 @@ export default function RegistrarPanel({
                     </div>
 
                     <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-400 font-mono">
-                      <span>Seller: {shortenAddress(plot.currentOwner, 8, 6)}</span>
+                      <span>Seller: {shortenAddress(plot.currentOwner, 6, 4)}</span>
                       {plot.escrowBuyer && (
                         <span className="text-cyan-300">
-                          Buyer: {shortenAddress(plot.escrowBuyer, 8, 6)}
+                          Buyer: {shortenAddress(plot.escrowBuyer, 6, 4)}
                         </span>
                       )}
                     </div>
 
                     <p className="text-xs text-amber-400 font-bold">
-                      Vault Locked Consideration: {formatEth(plot.escrowAmount || plot.price)} (≈{' '}
+                      Locked: {formatEth(plot.escrowAmount || plot.price)} (≈{' '}
                       {formatPkrFromWei(plot.escrowAmount || plot.price)})
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2.5 shrink-0">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
                     <button
                       disabled={isEmergencyFrozen}
                       onClick={() => onApproveTransfer(plot.id)}
-                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer"
+                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-xs px-5 py-3 sm:py-2.5 rounded-xl transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <CheckCircle2 className="w-4 h-4" />
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
                       <span>Stamp Sanad & Release ETH</span>
                     </button>
 
                     <button
                       onClick={() => onCancelEscrow(plot)}
-                      className="bg-slate-800 hover:bg-rose-950 text-rose-300 text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-700 cursor-pointer"
+                      className="bg-slate-800 hover:bg-rose-950 text-rose-300 text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-700 cursor-pointer text-center"
                     >
                       Reject & Refund Buyer
                     </button>
@@ -660,11 +635,11 @@ export default function RegistrarPanel({
 
       {/* 3. OFFICER ACCREDITATION */}
       {panelSection === 'officers' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-slate-900/85 border border-white/[0.08] p-6 md:p-8 rounded-3xl">
-            <h3 className="text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-teal-400" />
-              Accredit Sub-Registrar Wallet Key
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+          <div className="bg-slate-900/85 border border-white/[0.08] p-5 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl">
+            <h3 className="text-base sm:text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-teal-400 shrink-0" />
+              <span>Accredit Sub-Registrar Wallet Key</span>
             </h3>
             <p className="text-xs text-slate-400 mb-6">
               Grant on-chain signing authority to an approved KDA Sub-Registrar officer.
@@ -734,10 +709,10 @@ export default function RegistrarPanel({
             </form>
           </div>
 
-          <div className="bg-slate-900/85 border border-white/[0.08] p-6 md:p-8 rounded-3xl">
-            <h3 className="text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
-              <Building className="w-5 h-5 text-teal-400" />
-              Active Accredited Registrars ({uniqueOfficers.length})
+          <div className="bg-slate-900/85 border border-white/[0.08] p-5 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl">
+            <h3 className="text-base sm:text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
+              <Building className="w-5 h-5 text-teal-400 shrink-0" />
+              <span>Accredited Registrars ({uniqueOfficers.length})</span>
             </h3>
             <p className="text-xs text-slate-400 mb-6">
               Cryptographically authorized signing officers on the ZameenChain smart contract.
@@ -751,10 +726,10 @@ export default function RegistrarPanel({
                     off.isLead ? 'border-teal-500/40' : 'border-slate-800'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-start justify-between gap-2 mb-1">
                     <span className="font-bold text-sm text-slate-100">{off.name}</span>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${
                         off.isLead
                           ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
                           : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'

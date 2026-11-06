@@ -48,7 +48,8 @@ import {
   Crown,
   Activity,
   Lock,
-  Building2
+  Building2,
+  UserCheck
 } from 'lucide-react';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -75,6 +76,7 @@ export default function App() {
   const [actionModalState, setActionModalState] = useState(null);
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
+  const navScrollRef = useRef(null);
 
   const showToast = useCallback((message, type = 'success') => {
     if (toastTimerRef.current) {
@@ -91,6 +93,22 @@ export default function App() {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, []);
+
+  // Auto-scroll active pill into center view inside the horizontal nav dock
+  useEffect(() => {
+    if (!navScrollRef.current) return;
+    const activeBtn = navScrollRef.current.querySelector('[data-active="true"]');
+    if (activeBtn && typeof activeBtn.scrollIntoView === 'function') {
+      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [activeTab]);
+
+  const selectTab = (tab) => {
+    setActiveTab(tab);
+    if (window.innerWidth < 768) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Restore authenticated session on startup without blocking public visitors
   useEffect(() => {
@@ -164,10 +182,10 @@ export default function App() {
     }
     showToast(`Session verified: Signed in as ${user.name} (${user.role}).`, 'success');
 
-    if (user.role === 'BUYER') setActiveTab('buyer');
-    else if (user.role === 'SELLER') setActiveTab('seller');
-    else if (user.role === 'REGISTRAR') setActiveTab('registrar');
-    else if (user.role === 'ADMIN') setActiveTab('admin');
+    if (user.role === 'BUYER') selectTab('buyer');
+    else if (user.role === 'SELLER') selectTab('seller');
+    else if (user.role === 'REGISTRAR') selectTab('registrar');
+    else if (user.role === 'ADMIN') selectTab('admin');
   };
 
   const handleLogout = () => {
@@ -176,7 +194,7 @@ export default function App() {
     setIsMetaMaskConnected(false);
     setAccount(ZERO_ADDRESS);
     if (['buyer', 'seller', 'registrar', 'admin'].includes(activeTab)) {
-      setActiveTab('verify');
+      selectTab('verify');
     }
     showToast('Signed out of sovereign session.', 'info');
   };
@@ -206,14 +224,12 @@ export default function App() {
     }
   };
 
-  // Resolve plot object safely whether plot or plotId is passed
   const resolvePlotTarget = (plotOrId) => {
     if (!plotOrId) return null;
     if (typeof plotOrId === 'object') return plotOrId;
     return plots.find((p) => Number(p.id) === Number(plotOrId)) || null;
   };
 
-  // 1. Register Officer
   const handleRegisterOfficer = async (officerData) => {
     try {
       const res = await ledgerRegisterOfficer(currentUser, isMetaMaskConnected, officerData);
@@ -229,7 +245,6 @@ export default function App() {
     }
   };
 
-  // Revoke Officer
   const handleRemoveOfficer = async (officerAddress) => {
     try {
       await ledgerRevokeOfficer(currentUser, isMetaMaskConnected, officerAddress);
@@ -239,7 +254,6 @@ export default function App() {
     }
   };
 
-  // 2. Register Primary Plot Allotment
   const handleRegisterPlot = async (formData) => {
     try {
       const res = await ledgerRegisterPlot(currentUser, isMetaMaskConnected, formData);
@@ -254,7 +268,6 @@ export default function App() {
     }
   };
 
-  // 3. Open Interactive Modal for Listing Plot
   const openListForSaleModal = (plotOrId) => {
     if (!currentUser) {
       showToast('Please sign in as the registered property owner to list a parcel.', 'info');
@@ -266,7 +279,6 @@ export default function App() {
     setActionModalState({ type: 'LIST_PLOT', plot: targetPlot });
   };
 
-  // 4. Delist Plot
   const handleDelist = async (plotId) => {
     if (!currentUser) {
       setIsAuthModalOpen(true);
@@ -281,7 +293,6 @@ export default function App() {
     }
   };
 
-  // 5. Open Interactive Modal for Atomic Escrow Deposit
   const openDepositEscrowModal = (plotOrId) => {
     if (!currentUser) {
       showToast('Sign in or select a Verified Citizen Role to initiate an Atomic Escrow purchase.', 'info');
@@ -293,7 +304,6 @@ export default function App() {
     setActionModalState({ type: 'DEPOSIT_ESCROW', plot: targetPlot });
   };
 
-  // 6. KDA Registrar: Certify Deed Transfer & Release Escrow
   const handleApproveTransfer = async (plotId) => {
     try {
       const res = await ledgerApproveTransfer(currentUser, isMetaMaskConnected, plotId);
@@ -307,7 +317,6 @@ export default function App() {
     }
   };
 
-  // 7. Open Interactive Modal for Cancelling Escrow
   const openCancelEscrowModal = (plotOrId) => {
     if (!currentUser) {
       setIsAuthModalOpen(true);
@@ -318,7 +327,6 @@ export default function App() {
     setActionModalState({ type: 'CANCEL_ESCROW', plot: targetPlot });
   };
 
-  // 8. Open Interactive Modal for Enforcing Court Stay Order
   const openFlagDisputeModal = (plotOrId) => {
     if (!currentUser) {
       setIsAuthModalOpen(true);
@@ -329,7 +337,6 @@ export default function App() {
     setActionModalState({ type: 'FLAG_DISPUTE', plot: targetPlot });
   };
 
-  // 9. Resolve Court Stay Order
   const handleResolveDispute = async (plotId) => {
     try {
       await ledgerResolveDispute(currentUser, isMetaMaskConnected, plotId);
@@ -340,7 +347,6 @@ export default function App() {
     }
   };
 
-  // Execute confirmed modal transaction
   const handleActionModalConfirm = async (payload) => {
     if (!actionModalState) return;
     const { type, plot } = actionModalState;
@@ -383,7 +389,6 @@ export default function App() {
     await loadLedger(false);
   };
 
-  // Toggle City-Wide Emergency Freeze
   const handleToggleEmergencyFreeze = async () => {
     const nextState = !isEmergencyFrozen;
     try {
@@ -401,7 +406,6 @@ export default function App() {
     }
   };
 
-  // Reset Cloud Demo Ledger to clean seeded state
   const handleResetDemoLedger = async () => {
     resetCloudLedgerToDefaults();
     await ledgerSetEmergencyFreeze(currentUser, isMetaMaskConnected, false);
@@ -409,7 +413,6 @@ export default function App() {
     showToast('Karachi Cadastral Cloud Ledger restored to initial verified seed records.', 'success');
   };
 
-  // 10. Memoized Audit Trail Lookup for PlotModal
   const getAuditTrail = useCallback(async (plotId) => {
     return await ledgerGetPlotHistory(plotId);
   }, []);
@@ -428,6 +431,56 @@ export default function App() {
         address: isMetaMaskConnected ? account : ZERO_ADDRESS
       };
 
+  // Determine the 5th thumb-slot on the Mobile Bottom Navigation Bar based on user's role
+  const getMobileRolePortalItem = () => {
+    if (!currentUser) {
+      return {
+        key: 'auth',
+        label: 'Portal',
+        icon: UserCheck,
+        isActive: isAuthModalOpen,
+        onClick: () => setIsAuthModalOpen(true)
+      };
+    }
+    if (currentUser.role === 'ADMIN') {
+      return {
+        key: 'admin',
+        label: 'Admin',
+        icon: Crown,
+        isActive: activeTab === 'admin',
+        onClick: () => selectTab('admin')
+      };
+    }
+    if (currentUser.role === 'REGISTRAR') {
+      return {
+        key: 'registrar',
+        label: 'KDA Desk',
+        icon: ShieldAlert,
+        isActive: activeTab === 'registrar',
+        onClick: () => selectTab('registrar')
+      };
+    }
+    if (currentUser.role === 'SELLER') {
+      return {
+        key: 'seller',
+        label: 'My Plots',
+        icon: Home,
+        isActive: activeTab === 'seller',
+        onClick: () => selectTab('seller')
+      };
+    }
+    return {
+      key: 'buyer',
+      label: 'Market',
+      icon: ShoppingBag,
+      isActive: activeTab === 'buyer',
+      onClick: () => selectTab('buyer')
+    };
+  };
+
+  const mobileRoleItem = getMobileRolePortalItem();
+  const MobileRoleIcon = mobileRoleItem.icon;
+
   return (
     <div className="min-h-screen bg-[#060b13] text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
       {/* Subtle Ambient Sovereign Radial Backdrop */}
@@ -436,10 +489,10 @@ export default function App() {
         <div className="absolute top-1/3 right-1/5 w-[30rem] h-[30rem] bg-cyan-500/[0.04] rounded-full blur-3xl" />
       </div>
 
-      {/* Toast Notification */}
+      {/* Mobile-Safe Toast Notification */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 max-w-md p-4 rounded-2xl shadow-2xl border text-xs font-medium flex items-center gap-3 backdrop-blur-xl animate-slideUp ${
+          className={`fixed left-3.5 right-3.5 bottom-20 md:left-auto md:right-6 md:bottom-6 z-50 md:max-w-md p-3.5 sm:p-4 rounded-2xl shadow-2xl border text-xs font-medium flex items-center gap-3 backdrop-blur-xl animate-slideUp ${
             toast.type === 'error'
               ? 'bg-rose-950/95 border-rose-500/60 text-rose-100'
               : toast.type === 'info'
@@ -456,7 +509,7 @@ export default function App() {
               }`}
             />
           )}
-          <span className="leading-relaxed">{toast.message}</span>
+          <span className="leading-relaxed break-words">{toast.message}</span>
         </div>
       )}
 
@@ -471,29 +524,29 @@ export default function App() {
         networkMode={networkMode}
         blockNumber={blockNumber}
         isEmergencyFrozen={isEmergencyFrozen}
-        onSelectHome={() => setActiveTab('verify')}
+        onSelectHome={() => selectTab('verify')}
       />
 
       {/* Global City-Wide Emergency Circuit Breaker Banner */}
       {isEmergencyFrozen && (
         <div className="relative z-20 bg-rose-950/90 border-b border-rose-500/50 backdrop-blur-md">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2.5 text-rose-200">
-              <span className="p-1 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-400">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+            <div className="flex items-start sm:items-center gap-2.5 text-rose-200">
+              <span className="p-1 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-400 shrink-0 mt-0.5 sm:mt-0">
                 <Lock className="w-3.5 h-3.5" />
               </span>
-              <span>
+              <span className="leading-relaxed">
                 <strong className="text-white uppercase tracking-wider font-bold">
-                  Executive Circuit Breaker Engaged:
+                  Circuit Breaker Engaged:
                 </strong>{' '}
-                Karachi land listings, plot minting, and new escrow locks are suspended by order of the Chief Administrator. Buyers with existing escrows may still claim 100% refunds.
+                Karachi land listings, plot minting, and new escrow locks are suspended. Existing buyer escrows remain eligible for 100% refunds.
               </span>
             </div>
 
             {currentUser?.role === 'ADMIN' && (
               <button
                 onClick={handleToggleEmergencyFreeze}
-                className="px-3 py-1 rounded-lg bg-rose-500 hover:bg-rose-400 text-white font-bold text-[11px] shrink-0 transition cursor-pointer"
+                className="w-full sm:w-auto px-3 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-400 text-white font-bold text-[11px] shrink-0 transition cursor-pointer"
               >
                 Lift Freeze Now
               </button>
@@ -503,48 +556,54 @@ export default function App() {
       )}
 
       {/* Main Content Container */}
-      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Karachi Cadastral Telemetry Banner */}
-        <StatsBanner plots={plots} />
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 pt-5 pb-24 md:py-8">
+        {/* Karachi Cadastral Telemetry Banner (Full on Verify or Desktop; Compacted on other mobile tabs) */}
+        <StatsBanner plots={plots} compactMobile={activeTab !== 'verify'} />
 
         {/* Executive Segmented Navigation Dock */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-8">
-          <div className="flex items-center gap-1.5 overflow-x-auto p-1.5 rounded-2xl bg-slate-900/70 backdrop-blur-xl border border-white/[0.08] shadow-xl">
+        <div className="flex items-center justify-between gap-2 mb-6 sm:mb-8">
+          <div
+            ref={navScrollRef}
+            className="flex items-center gap-1.5 overflow-x-auto no-scrollbar p-1.5 rounded-2xl bg-slate-900/75 backdrop-blur-xl border border-white/[0.08] shadow-xl flex-1 min-w-0"
+          >
             {/* Section 1: Public Cadastre, GIS & Explorer */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <button
-                onClick={() => setActiveTab('verify')}
+                data-active={activeTab === 'verify'}
+                onClick={() => selectTab('verify')}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   activeTab === 'verify'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
-                <Search className="w-3.5 h-3.5" />
+                <Search className="w-3.5 h-3.5 shrink-0" />
                 <span>Verify Title</span>
               </button>
 
               <button
-                onClick={() => setActiveTab('map')}
+                data-active={activeTab === 'map'}
+                onClick={() => selectTab('map')}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   activeTab === 'map'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
-                <MapIcon className="w-3.5 h-3.5" />
+                <MapIcon className="w-3.5 h-3.5 shrink-0" />
                 <span>GIS Radar</span>
               </button>
 
               <button
-                onClick={() => setActiveTab('directory')}
+                data-active={activeTab === 'directory'}
+                onClick={() => selectTab('directory')}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   activeTab === 'directory'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
-                <Layers className="w-3.5 h-3.5" />
+                <Layers className="w-3.5 h-3.5 shrink-0" />
                 <span>Cadastre</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono leading-none ${
@@ -558,29 +617,31 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => setActiveTab('explorer')}
+                data-active={activeTab === 'explorer'}
+                onClick={() => selectTab('explorer')}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   activeTab === 'explorer'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
-                <Activity className="w-3.5 h-3.5" />
+                <Activity className="w-3.5 h-3.5 shrink-0" />
                 <span>Block Explorer</span>
               </button>
             </div>
 
-            <div className="h-5 w-[1px] bg-white/[0.1] mx-1 hidden sm:block shrink-0" />
+            <div className="h-5 w-[1px] bg-white/[0.1] mx-1 shrink-0" />
 
             {/* Section 2: Citizen Marketplace & Owner Console */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <button
+                data-active={activeTab === 'buyer'}
                 onClick={() => {
                   if (!currentUser) {
                     showToast('Select a Citizen Role or Sign In to open the Buyer Portal.', 'info');
                     setIsAuthModalOpen(true);
                   } else {
-                    setActiveTab('buyer');
+                    selectTab('buyer');
                   }
                 }}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
@@ -589,17 +650,18 @@ export default function App() {
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
-                <ShoppingBag className="w-3.5 h-3.5" />
+                <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
                 <span>Buyer Portal</span>
               </button>
 
               <button
+                data-active={activeTab === 'seller'}
                 onClick={() => {
                   if (!currentUser) {
                     showToast('Select a Seller Role or Sign In to manage owned land titles.', 'info');
                     setIsAuthModalOpen(true);
                   } else {
-                    setActiveTab('seller');
+                    selectTab('seller');
                   }
                 }}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
@@ -608,21 +670,22 @@ export default function App() {
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
                 }`}
               >
-                <Home className="w-3.5 h-3.5" />
+                <Home className="w-3.5 h-3.5 shrink-0" />
                 <span>Owner Console</span>
               </button>
             </div>
 
-            <div className="h-5 w-[1px] bg-white/[0.1] mx-1 hidden sm:block shrink-0" />
+            <div className="h-5 w-[1px] bg-white/[0.1] mx-1 shrink-0" />
 
             {/* Section 3: Sovereign Governance */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <button
+                data-active={activeTab === 'registrar'}
                 onClick={() => {
                   if (!currentUser) {
                     setIsAuthModalOpen(true);
                   } else {
-                    setActiveTab('registrar');
+                    selectTab('registrar');
                   }
                 }}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
@@ -632,7 +695,7 @@ export default function App() {
                 }`}
               >
                 <ShieldAlert
-                  className={`w-3.5 h-3.5 ${
+                  className={`w-3.5 h-3.5 shrink-0 ${
                     activeTab === 'registrar' ? 'text-slate-950' : 'text-amber-400'
                   }`}
                 />
@@ -640,11 +703,12 @@ export default function App() {
               </button>
 
               <button
+                data-active={activeTab === 'admin'}
                 onClick={() => {
                   if (!currentUser) {
                     setIsAuthModalOpen(true);
                   } else {
-                    setActiveTab('admin');
+                    selectTab('admin');
                   }
                 }}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
@@ -654,7 +718,7 @@ export default function App() {
                 }`}
               >
                 <Crown
-                  className={`w-3.5 h-3.5 ${
+                  className={`w-3.5 h-3.5 shrink-0 ${
                     activeTab === 'admin' ? 'text-slate-950' : 'text-amber-400'
                   }`}
                 />
@@ -663,17 +727,17 @@ export default function App() {
             </div>
           </div>
 
-          {/* Sync Ledger Button */}
+          {/* Compact Sync Button (Icon-only on mobile, labeled on sm+) */}
           <button
             onClick={() => loadLedger(false)}
             disabled={syncing}
             title="Synchronize Cadastral State"
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900/70 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/[0.08] transition shadow-md hover:border-emerald-500/30 text-xs font-semibold cursor-pointer shrink-0"
+            className="flex items-center justify-center gap-2 p-3 sm:px-4 sm:py-2.5 rounded-2xl sm:rounded-xl bg-slate-900/75 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/[0.08] transition shadow-md hover:border-emerald-500/30 text-xs font-semibold cursor-pointer shrink-0"
           >
             <RefreshCw
-              className={`w-3.5 h-3.5 text-emerald-400 ${syncing ? 'animate-spin' : ''}`}
+              className={`w-4 h-4 sm:w-3.5 sm:h-3.5 text-emerald-400 ${syncing ? 'animate-spin' : ''}`}
             />
-            <span>{syncing ? 'Syncing...' : 'Sync Ledger'}</span>
+            <span className="hidden sm:inline">{syncing ? 'Syncing...' : 'Sync Ledger'}</span>
           </button>
         </div>
 
@@ -777,6 +841,75 @@ export default function App() {
         )}
       </main>
 
+      {/* Native-App Mobile Bottom Navigation Bar */}
+      <nav
+        aria-label="Mobile Quick Navigation"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#050a12]/95 backdrop-blur-2xl border-t border-white/[0.1] pb-safe print:hidden shadow-[0_-10px_30px_rgba(0,0,0,0.65)]"
+      >
+        <div className="grid grid-cols-5 px-1.5 pt-1.5">
+          <button
+            type="button"
+            onClick={() => selectTab('verify')}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer ${
+              activeTab === 'verify' ? 'text-emerald-400' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Search className="w-4 h-4 mb-0.5" />
+            <span className="text-[10px] font-semibold">Verify</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => selectTab('map')}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer ${
+              activeTab === 'map' ? 'text-emerald-400' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <MapIcon className="w-4 h-4 mb-0.5" />
+            <span className="text-[10px] font-semibold">GIS Map</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => selectTab('directory')}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer ${
+              activeTab === 'directory' ? 'text-emerald-400' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Layers className="w-4 h-4 mb-0.5" />
+            <span className="text-[10px] font-semibold">Cadastre</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => selectTab('explorer')}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer ${
+              activeTab === 'explorer' ? 'text-emerald-400' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Activity className="w-4 h-4 mb-0.5" />
+            <span className="text-[10px] font-semibold">Explorer</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={mobileRoleItem.onClick}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer ${
+              mobileRoleItem.isActive
+                ? 'text-amber-400'
+                : currentUser
+                ? 'text-teal-300 hover:text-white'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <MobileRoleIcon className="w-4 h-4 mb-0.5" />
+            <span className="text-[10px] font-semibold truncate max-w-[60px]">
+              {mobileRoleItem.label}
+            </span>
+          </button>
+        </div>
+      </nav>
+
       {/* Digital Sanad Certificate & Immutable Chain-of-Title Modal */}
       <PlotModal
         plot={selectedPlot}
@@ -799,10 +932,10 @@ export default function App() {
       />
 
       {/* Sovereign GovTech Footer */}
-      <footer className="relative z-10 border-t border-white/[0.06] bg-[#04080f]/90 backdrop-blur-xl py-6 px-4 text-xs text-slate-400 print:hidden">
+      <footer className="relative z-10 border-t border-white/[0.06] bg-[#04080f]/90 backdrop-blur-xl pt-6 pb-24 md:py-6 px-4 text-xs text-slate-400 print:hidden">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+          <div className="flex items-center gap-2.5 text-center md:text-left">
+            <div className="hidden sm:flex w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 items-center justify-center text-emerald-400 shrink-0">
               <Building2 className="w-4 h-4" />
             </div>
             <div>
@@ -810,19 +943,19 @@ export default function App() {
                 ZameenChain Sovereign Cadastral Protocol
               </p>
               <p className="text-[11px] text-slate-500">
-                Karachi Development Authority (KDA) & Board of Revenue Sindh • Anti-Fraud Atomic Escrow Registry
+                Karachi Development Authority (KDA) & Board of Revenue Sindh
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] font-mono">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] font-mono">
             <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
               Contract: <span className="text-emerald-400">{shortenAddress(CONTRACT_ADDRESS, 6, 4)}</span>
             </span>
             <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
               Engine:{' '}
               <span className={networkMode === 'LIVE_EVM' ? 'text-emerald-400' : 'text-cyan-400'}>
-                {networkMode === 'LIVE_EVM' ? 'Ethereum EVM (31337)' : 'Sovereign Cloud Ledger'}
+                {networkMode === 'LIVE_EVM' ? 'EVM (31337)' : 'Cloud Ledger'}
               </span>
             </span>
             <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">

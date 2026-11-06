@@ -4,6 +4,8 @@
   html {
     font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     scroll-behavior: smooth;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     background-color: #060b13;
@@ -11,10 +13,35 @@
     font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    touch-action: manipulation;
   }
   code, pre, .font-mono {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
+}
+
+/* Prevent iOS Safari auto-zoom when focusing inputs < 16px on mobile screens */
+@media screen and (max-width: 639px) {
+  input:not([data-otp="true"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Hide scrollbars on horizontal touch-swipe strips */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area support for notched mobile devices */
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
 @keyframes fadeIn {
@@ -47,7 +74,7 @@
   animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Custom scrollbar */
+/* Custom desktop scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -70,6 +97,7 @@
     color: #0f172a !important;
   }
   nav,
+  header,
   main,
   footer {
     display: none !important;
